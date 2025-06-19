@@ -28,9 +28,9 @@ const {
 } = require("../controllers/managerController");
 
 // ────── Auth & Profile Routes ──────
-router.post("/register",  registerUser);
+router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/logout", authenticate, logoutUser);
+router.post("/logout", logoutUser);
 router.get("/check-auth", authenticate, checkAuth);
 router.get("/getprofile", authenticate, getProfile);
 router.post("/getimageprofile", authenticate, getImageProfile);
