@@ -12,7 +12,6 @@ const authenticate = async (req, res, next) => {
         .json({ message: "Unauthorized: No token provided" });
     }
 
-    // Resolve secret based on user role
     const secrets = {
       superadmin: process.env.JWT_SECRET_ADMIN,
       supervisor: process.env.JWT_SECRET_MANAGER,
@@ -30,14 +29,6 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized: User not found" });
     }
 
-    const session = await Session.findOne({ userId: user._id, token });
-    if (!session) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: Session expired or invalid" });
-    }
-
-    // Attach user to request
     req.existingUser = user;
     next();
   } catch (error) {

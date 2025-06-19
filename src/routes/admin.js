@@ -7,19 +7,19 @@ const {
   registerAdmin,
   verifyAdmin,
   deleteUser,
-  getUser,
+  getUsers,
 } = require("../controllers/adminController");
 
 // Public Routes
-router.post("/superadmin/register", registerSuperAdmin);
-router.post("/superadmin/login", loginAdmin);
+router.post("/register", registerSuperAdmin);
+router.post("/login", loginAdmin);
 
 // Protected Routes (require authentication)
-router.post("/superadmin/register", authenticate, registerAdmin);
-router.post("/superadmin/verify", authenticate, verifyAdmin);
+router.post("/register", authenticate, registerAdmin);
+router.post("/verify", authenticate, verifyAdmin);
 
 // User Management
-router.get("/superadmin/users", authenticate, getUser);
-router.delete("/superadmin/users", authenticate, deleteUser);
+router.get("/users", authenticate, getUsers);
+router.delete("/users", authenticate, deleteUser);
 
 module.exports = router;

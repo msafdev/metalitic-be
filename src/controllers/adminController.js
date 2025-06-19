@@ -21,13 +21,13 @@ const registerSuperAdmin = async (req, res) => {
         //! hash password
         const hashedPassword = await hashPassword(password);
 
-        if (role !== "Super" && code !== "@#$%L") {
+        if (role !== "superadmin" && code !== "@#$%L") {
             return res.status(404).json({ message: "signup error #2" });
         }
 
-        console.log("cek user")
         //! jika username sudah exist
         const existingUser = await User.findOne({ username: username });
+
         if (existingUser) {
             return res.status(404).json({ message: "signup error" });
         }
@@ -56,7 +56,7 @@ const registerSuperAdmin = async (req, res) => {
 
         res.status(200).json({ message: "Registrasi berhasil, silahkan tunggu proses verifikasi" });
     } catch (error) {
-        res.status(500).json({ message: "signup error" });
+        res.status(500).json({ message: error });
     }
 }
 
@@ -270,25 +270,13 @@ const listUserNeedVerify = async (req, res) => {
     }
 }
 
-const getUser = async (req, res) => {
+const getUsers = async (req, res) => {
     try {
-        const existingUser = req.existingUser;
-
-        //! jika tidak ditemukan user atau blm di verify
-        if (!existingUser || !existingUser.isVerify || !existingUser.isSuperAdmin) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-        //! hanya admin  yang diijinkan 
-        const result = await User.find().select("username name _id");
+        const result = await User.find().select("username name nomorInduk devisi jabatan email noHp alamat _id");
         res.status(200).json({ message: result });
     } catch (error) {
-        res.status(500).json({ message: 'Unauthorized' });
+        res.status(401).json({ message: 'Unauthorized' });
     }
 }
 
-
-const test = async (req, res) => {
-    res.status(200).json({ message: "success123111" });
-}
-
-module.exports = { registerSuperAdmin, loginAdmin, registerAdmin, verifyAdmin, deleteUser, listUserNeedVerify, getUser }
+module.exports = { registerSuperAdmin, loginAdmin, registerAdmin, verifyAdmin, deleteUser, listUserNeedVerify, getUsers }

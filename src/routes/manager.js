@@ -28,12 +28,12 @@ const {
 } = require("../controllers/managerController");
 
 // ────── Auth & Profile Routes ──────
-router.post("/user/register", authenticate, registerUser);
-router.post("/user/login", loginUser);
-router.post("/user/logout", authenticate, logoutUser);
-router.get("/user/check-auth", authenticate, checkAuth);
-router.get("/user/getprofile", authenticate, getProfile);
-router.post("/user/getimageprofile", authenticate, getImageProfile);
+router.post("/register",  registerUser);
+router.post("/login", loginUser);
+router.post("/logout", authenticate, logoutUser);
+router.get("/check-auth", authenticate, checkAuth);
+router.get("/getprofile", authenticate, getProfile);
+router.post("/getimageprofile", authenticate, getImageProfile);
 
 // ────── User Management Routes ──────
 router.get("/users", authenticate, getUsers);
@@ -41,11 +41,11 @@ router.put("/user/edit", authenticate, upload.single("image"), editUser);
 router.delete("/user/delete", authenticate, deleteUser);
 
 // ────── Project Management Routes ──────
-router.get("/project/all", authenticate, getAllProject); // Admin only
-router.post("/project/add", authenticate, addProject); // Admin only
-router.put("/project/edit", authenticate, editProject); // Admin only
-router.delete("/project/delete", authenticate, deleteProject); // Admin only
-router.post("/project/add/users", authenticate, addUserProject); // Admin only
-router.post("/project/get/users", authenticate, getUserProject); // Admin only
+router.get("/project/all", authenticate, getAllProject);
+router.post("/project/add", authenticate, addProject);
+router.put("/project/edit", authenticate, editProject);
+router.delete("/project/delete", authenticate, deleteProject);
+router.post("/project/add/users", authenticate, addUserProject);
+router.post("/project/get/users", authenticate, getUserProject);
 
 module.exports = router;
