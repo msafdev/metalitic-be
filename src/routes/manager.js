@@ -41,7 +41,7 @@ router.put("/user/edit", authenticate, upload.single("image"), editUser);
 router.delete("/user/delete", authenticate, deleteUser);
 
 // ────── Project Management Routes ──────
-router.get("/project/all", authenticate, getAllProject);
+router.get("/projects", authenticate, getAllProject);
 router.post("/project/add", authenticate, addProject);
 router.put("/project/edit", authenticate, editProject);
 router.delete("/project/delete", authenticate, deleteProject);

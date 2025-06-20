@@ -6,13 +6,14 @@ const path = require("path");
 
 const User = require("../models/User");
 const Session = require("../models/Session");
+const Project = require("../models/Project");
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
 
 const isUnauthorized = (user) => {
-  !user || !user.isVerify || user.isSuperAdmin || user.isAdmin;
+  !user || !user.isVerify;
 };
 
 // Controller: Register
