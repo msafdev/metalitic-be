@@ -6,6 +6,8 @@ const authenticate = async (req, res, next) => {
   try {
     const { token, role } = req.cookies;
 
+    console.log({ token, role });
+
     if (!token) {
       return res
         .status(401)
@@ -17,7 +19,7 @@ const authenticate = async (req, res, next) => {
       supervisor: process.env.JWT_SECRET_MANAGER,
       default: process.env.JWT_SECRET,
     };
-    const secret = secrets[role] || secrets.default;
+    const secret = secrets[role.toLowerCase()] || secrets.default;
 
     // Decode token
     const decoded = jwt.verify(token, secret);

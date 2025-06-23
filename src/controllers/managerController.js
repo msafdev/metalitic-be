@@ -15,7 +15,7 @@ const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
 
 const isUnauthorized = (user) => {
-  !user || !user.isVerify;
+  !user || !user.isVerify || !user.isAdmin;
 };
 
 // Controller: Register
@@ -141,23 +141,86 @@ const logoutUser = async (req, res) => {
 // Controller: Get all users (admin only)
 const getUsers = async (req, res) => {
   try {
-    const admin = req.existingUser;
+    const user = req.existingUser;
 
-    if (isUnauthorized(admin)) {
+    if (isUnauthorized(user)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const users = await User.find({ isSuperAdmin: false }).select(
-      "name nomorInduk devisi jabatan email noHp alamat filename _id"
+    let query = {};
+
+    if (user.isSuperAdmin === false) {
+      query.isSuperAdmin = false;
+    }
+
+    const users = await User.find(query).select(
+      "username name nomorInduk devisi jabatan email noHp alamat isVerify filename _id"
     );
 
     res.status(200).json({
-      status: true,
       message: "Get users success",
-      data: users
+      data: users,
     });
   } catch (err) {
     res.status(500).json({ message: "Get users failed" });
+  }
+};
+
+// Controller: Get all penguji (admin only)
+const getPenguji = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const users = await User.find({
+      isSuperAdmin: false,
+      isAdmin: false,
+    }).select(
+      "username name nomorInduk devisi jabatan email noHp alamat filename _id"
+    );
+
+    res.status(200).json({
+      message: "Get penguji success",
+      data: users,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Get users failed" });
+  }
+};
+
+// Controller: Verify user (admin only)
+const verifyUser = async (req, res) => {
+  try {
+    const existingUser = req.existingUser;
+
+    const usernameVerify = req.body.username;
+    const isVerify = req.body.isVerify;
+
+    console.log(existingUser);
+    if (!existingUser || !existingUser.isAdmin) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (existingUser.isAdmin) {
+      const updatedUser = await User.findOneAndUpdate(
+        { username: usernameVerify },
+        { isVerify: isVerify },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User tidak ditemukan" });
+      }
+    } else {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    res.status(200).json({ message: "verifikasi user berhasil" });
+  } catch (error) {
+    res.status(500).json({ message: "Unauthorized" });
   }
 };
 
@@ -277,13 +340,6 @@ const getImageProfile = async (req, res) => {
   }
 };
 
-// Controller: Auth check role
-const checkAuth = (req, res) => {
-  const user = req.existingUser;
-  const role = user.isAdmin || user.isSuperAdmin ? "supervisor" : "user";
-  res.status(200).json({ role, message: "Valid token" });
-};
-
 // Controller: Get all projects (admin only)
 const getAllProject = async (req, res) => {
   try {
@@ -299,7 +355,7 @@ const getAllProject = async (req, res) => {
 
     res.status(200).json({
       data: projects,
-      message: "Get all project success"
+      message: "Get all project success",
     });
   } catch (err) {
     res.status(500).json({ message: "Get Project failed" });
@@ -317,28 +373,34 @@ const getProjectByIdProject = async (req, res) => {
     const { idProject } = req.params;
 
     const [project, projectEvaluations] = await Promise.all([
-      Project.findOne({ idProject }).select(
-        "_id idProject namaProject pemintaJasa tanggalOrderMasuk createdAt updatedAt penguji"
-      ).lean(),
-      ProjectEvaluation.find({ projectId: idProject }).lean()
-    ])
+      Project.findOne({ idProject })
+        .select(
+          "_id idProject namaProject pemintaJasa tanggalOrderMasuk createdAt updatedAt penguji"
+        )
+        .lean(),
+      ProjectEvaluation.find({ projectId: idProject }).lean(),
+    ]);
 
     // Tambahkan progress untuk setiap evaluation
-    const projectEvaluationsWithProgress = projectEvaluations.map((evaluation) => {
-      const { progress, missingFields } = calculateProgressWithMissingFields(evaluation, ProjectEvaluation.schema)
+    const projectEvaluationsWithProgress = projectEvaluations.map(
+      (evaluation) => {
+        const { progress, missingFields } = calculateProgressWithMissingFields(
+          evaluation,
+          ProjectEvaluation.schema
+        );
 
-      return {
-        id: evaluation.id,
-        projectId: evaluation.projectId,
-        nama: evaluation.nama,
-        status: evaluation.status,
-        progress,
-        missingFields,
-        createdAt: evaluation.createdAt,
-        updatedAt: evaluation.updatedAt,
+        return {
+          id: evaluation.id,
+          projectId: evaluation.projectId,
+          nama: evaluation.nama,
+          status: evaluation.status,
+          progress,
+          missingFields,
+          createdAt: evaluation.createdAt,
+          updatedAt: evaluation.updatedAt,
+        };
       }
-    });
-
+    );
 
     res.status(200).json({
       status: true,
@@ -346,14 +408,14 @@ const getProjectByIdProject = async (req, res) => {
         ...project,
         pengujian: projectEvaluationsWithProgress || [],
       },
-      message: "Get detail project success"
+      message: "Get detail project success",
     });
   } catch (error) {
     console.log(error);
 
     res.status(500).json({ message: "Get Project failed" });
   }
-}
+};
 
 // Controller: Add project
 const addProject = async (req, res) => {
@@ -363,12 +425,7 @@ const addProject = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const {
-      namaProject,
-      pemintaJasa,
-      tanggalOrderMasuk,
-      penguji
-    } = req.body;
+    const { namaProject, pemintaJasa, tanggalOrderMasuk, penguji } = req.body;
 
     const existingProject = await Project.findOne({ namaProject });
 
@@ -378,7 +435,10 @@ const addProject = async (req, res) => {
         .json({ status: false, message: "Project sudah terdaftar" });
     }
 
-    const idProject = `MTL-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+    const idProject = `MTL-${String(Math.floor(Math.random() * 1000)).padStart(
+      3,
+      "0"
+    )}`;
 
     const newProject = new Project({
       idProject,
@@ -393,7 +453,7 @@ const addProject = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Project berhasil ditambahkan",
-      data: newProject
+      data: newProject,
     });
   } catch (err) {
     console.error(err);
@@ -565,31 +625,6 @@ const getUserProject = async (req, res) => {
   }
 };
 
-const getProfile = async (req, res) => {
-  try {
-    //! data dati authoMidddleware
-    const existingUser = req.existingUser;
-
-    //! jika tidak ditemukan user atau blm di verify
-    if (!existingUser || !existingUser.isVerify || existingUser.isSuperAdmin) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    //! cek apakah semua user terdaftar
-    const foundUser = await User.findById(existingUser._id).select(
-      "name nomorInduk devisi jabatan -_id"
-    );
-
-    if (foundUser) {
-      return res.status(200).json({ message: foundUser });
-    }
-
-    return res.status(400).json({ message: "Data tidak ditemukan" });
-  } catch (error) {
-    res.status(500).json({ message: "Get Data user failed" });
-  }
-};
-
 const getServiceRequester = async (req, res) => {
   try {
     const user = req.existingUser;
@@ -609,7 +644,7 @@ const getServiceRequester = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const addServiceRequester = async (req, res) => {
   try {
@@ -619,9 +654,7 @@ const addServiceRequester = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const {
-      nama
-    } = req.body;
+    const { nama } = req.body;
 
     const existingServiceRequester = await ServiceRequester.findOne({ nama });
 
@@ -633,7 +666,7 @@ const addServiceRequester = async (req, res) => {
     }
 
     const newServiceRequester = new ServiceRequester({
-      nama
+      nama,
     });
 
     await newServiceRequester.save();
@@ -641,13 +674,13 @@ const addServiceRequester = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Project berhasil ditambahkan",
-      data: newServiceRequester
+      data: newServiceRequester,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
 };
@@ -667,7 +700,7 @@ const deleteServiceRequester = async (req, res) => {
     if (!existingServiceRequester) {
       return res.status(400).json({
         status: false,
-        message: "Peminta Jasa tidak ditemukan"
+        message: "Peminta Jasa tidak ditemukan",
       });
     }
 
@@ -675,13 +708,13 @@ const deleteServiceRequester = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Peminta Jasa berhasil dihapus"
+      message: "Peminta Jasa berhasil dihapus",
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
 };
@@ -713,15 +746,15 @@ const addProjectEvaluation = async (req, res) => {
       listGambarStrukturMikro,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi
-    } = req.body
+      aiModelDegradasi,
+    } = req.body;
 
     const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
 
     if (existingProjectEvaluation) {
       return res.status(400).json({
         status: false,
-        message: `Pengujian Project dengan id ${id} sudah terdaftar`
+        message: `Pengujian Project dengan id ${id} sudah terdaftar`,
       });
     }
 
@@ -745,7 +778,7 @@ const addProjectEvaluation = async (req, res) => {
       listGambarStrukturMikro,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi
+      aiModelDegradasi,
     });
 
     await newProjectEvaluation.save();
@@ -753,16 +786,16 @@ const addProjectEvaluation = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Pengujian Project berhasil ditambahkan",
-      data: newProjectEvaluation
+      data: newProjectEvaluation,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
-}
+};
 
 const editProjectEvaluation = async (req, res) => {
   try {
@@ -791,15 +824,15 @@ const editProjectEvaluation = async (req, res) => {
       listGambarStrukturMikro,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi
-    } = req.body
+      aiModelDegradasi,
+    } = req.body;
 
     const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
 
     if (!existingProjectEvaluation) {
       return res.status(400).json({
         status: false,
-        message: `Pengujian Project dengan id ${id} tidak ditemukan`
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
       });
     }
 
@@ -827,19 +860,27 @@ const editProjectEvaluation = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Pengujian Project berhasil diubah",
-      data: existingProjectEvaluation
+      data: existingProjectEvaluation,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
-}
+};
 
 const calculateProgressWithMissingFields = (data, modelSchema) => {
-  const excludedFields = ['_id', '__v', 'createdAt', 'updatedAt', 'id', 'projectId', 'status'];
+  const excludedFields = [
+    "_id",
+    "__v",
+    "createdAt",
+    "updatedAt",
+    "id",
+    "projectId",
+    "status",
+  ];
   const schemaFields = Object.keys(modelSchema.paths).filter(
     (field) => !excludedFields.includes(field)
   );
@@ -882,23 +923,23 @@ const getProjectEvaluationById = async (req, res) => {
     if (!existingProjectEvaluation) {
       return res.status(400).json({
         status: false,
-        message: `Pengujian Project dengan id ${id} tidak ditemukan`
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
       });
     }
 
     res.status(200).json({
       status: true,
       message: "Pengujian Project berhasil ditemukan",
-      data: existingProjectEvaluation
+      data: existingProjectEvaluation,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
-}
+};
 
 const deleteProjectEvaluationById = async (req, res) => {
   try {
@@ -915,7 +956,7 @@ const deleteProjectEvaluationById = async (req, res) => {
     if (!existingProjectEvaluation) {
       return res.status(400).json({
         status: false,
-        message: `Pengujian Project dengan id ${id} tidak ditemukan`
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
       });
     }
 
@@ -924,16 +965,16 @@ const deleteProjectEvaluationById = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Pengujian Project berhasil dihapus",
-      data: existingProjectEvaluation
+      data: existingProjectEvaluation,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
-}
+};
 
 module.exports = {
   getImageProfile,
@@ -941,22 +982,22 @@ module.exports = {
   loginUser,
   logoutUser,
   getUsers,
+  getPenguji,
   editUser,
   deleteUser,
-  checkAuth,
   getAllProject,
   getProjectByIdProject,
   addProject,
+  verifyUser,
   editProject,
   deleteProject,
   addUserProject,
   getUserProject,
-  getProfile,
   getServiceRequester,
   addServiceRequester,
   deleteServiceRequester,
   addProjectEvaluation,
   editProjectEvaluation,
   getProjectEvaluationById,
-  deleteProjectEvaluationById
+  deleteProjectEvaluationById,
 };
