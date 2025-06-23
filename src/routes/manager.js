@@ -25,6 +25,14 @@ const {
   deleteProject,
   addUserProject,
   getUserProject,
+  getServiceRequester,
+  addServiceRequester,
+  deleteServiceRequester,
+  getProjectByIdProject,
+  getProjectEvaluationById,
+  addProjectEvaluation,
+  editProjectEvaluation,
+  deleteProjectEvaluationById,
 } = require("../controllers/managerController");
 
 // ────── Auth & Profile Routes ──────
@@ -42,10 +50,23 @@ router.delete("/user/delete", authenticate, deleteUser);
 
 // ────── Project Management Routes ──────
 router.get("/projects", authenticate, getAllProject);
-router.post("/project/add", authenticate, addProject);
-router.put("/project/edit", authenticate, editProject);
-router.delete("/project/delete", authenticate, deleteProject);
-router.post("/project/add/users", authenticate, addUserProject);
-router.post("/project/get/users", authenticate, getUserProject);
+router.get("/projects/:idProject", authenticate, getProjectByIdProject);
+router.post("/projects", authenticate, addProject);
+router.put("/projects/edit", authenticate, editProject);
+router.delete("/projects/delete", authenticate, deleteProject);
+router.post("/projects/add/users", authenticate, addUserProject);
+router.post("/projects/get/users", authenticate, getUserProject);
+
+// ────── Project Evaluation / Pengujian Project Routes ──────
+router.post("/projects/evaluation", authenticate, addProjectEvaluation);
+router.get("/projects/evaluation/:id", authenticate, getProjectEvaluationById);
+router.put("/projects/evaluation/:id", authenticate, editProjectEvaluation);
+router.delete("/projects/evaluation/:id", authenticate, deleteProjectEvaluationById);
+
+// ────── Service Requester / Peminta Jasa Routes ──────
+router.get("/service-requester", authenticate, getServiceRequester);
+router.post("/service-requester", authenticate, addServiceRequester);
+router.delete("/service-requester/:id", authenticate, deleteServiceRequester);
+
 
 module.exports = router;
