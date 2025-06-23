@@ -9,6 +9,7 @@ const path = require("path");
 const adminRoutes = require("./routes/admin");
 const managerRoutes = require("./routes/manager");
 const userRoutes = require("./routes/user");
+const globalRoutes = require("./routes/global");
 // const localRoutes = require("./routes/local");
 // const deviceFERoutes = require("./routes/device");
 
@@ -51,6 +52,7 @@ mongoose
 app.use("/api/v1/superadmin", adminRoutes);
 app.use("/api/v1/manager", managerRoutes);
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1", globalRoutes)
 // app.use("/api/v1/local", localRoutes);
 // app.use("/api/v1/device", deviceFERoutes);
 
