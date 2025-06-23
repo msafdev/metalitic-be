@@ -9,6 +9,7 @@ const Session = require("../models/Session");
 const Project = require("../models/Project");
 const ServiceRequester = require("../models/ServiceRequester");
 const ProjectEvaluation = require("../models/ProjectEvaluation");
+const { getAssetURL } = require("../utils/assets");
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
@@ -739,7 +740,7 @@ const addProjectEvaluation = async (req, res) => {
       gritSandWhell,
       etsa,
       kamera,
-      merkMikrosop,
+      merkMikroskop,
       perbesaranMikroskop,
       gambarKomponent1,
       gambarKomponent2,
@@ -771,7 +772,7 @@ const addProjectEvaluation = async (req, res) => {
       gritSandWhell,
       etsa,
       kamera,
-      merkMikrosop,
+      merkMikroskop,
       perbesaranMikroskop,
       gambarKomponent1,
       gambarKomponent2,
@@ -817,18 +818,16 @@ const editProjectEvaluation = async (req, res) => {
       gritSandWhell,
       etsa,
       kamera,
-      merkMikrosop,
+      merkMikroskop,
       perbesaranMikroskop,
-      gambarKomponent1,
-      gambarKomponent2,
-      listGambarStrukturMikro,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi,
+      aiModelDegradasi
     } = req.body;
 
-    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+    const files = req.files;
 
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
     if (!existingProjectEvaluation) {
       return res.status(400).json({
         status: false,
@@ -836,24 +835,45 @@ const editProjectEvaluation = async (req, res) => {
       });
     }
 
-    existingProjectEvaluation.projectId = projectId;
-    existingProjectEvaluation.nama = nama;
-    existingProjectEvaluation.tanggal = tanggal;
-    existingProjectEvaluation.lokasi = lokasi;
-    existingProjectEvaluation.area = area;
-    existingProjectEvaluation.posisi = posisi;
-    existingProjectEvaluation.material = material;
-    existingProjectEvaluation.gritSandWhell = gritSandWhell;
-    existingProjectEvaluation.etsa = etsa;
-    existingProjectEvaluation.kamera = kamera;
-    existingProjectEvaluation.merkMikrosop = merkMikrosop;
-    existingProjectEvaluation.perbesaranMikroskop = perbesaranMikroskop;
-    existingProjectEvaluation.gambarKomponent1 = gambarKomponent1;
-    existingProjectEvaluation.gambarKomponent2 = gambarKomponent2;
-    existingProjectEvaluation.listGambarStrukturMikro = listGambarStrukturMikro;
-    existingProjectEvaluation.aiModelFasa = aiModelFasa;
-    existingProjectEvaluation.aiModelCrack = aiModelCrack;
-    existingProjectEvaluation.aiModelDegradasi = aiModelDegradasi;
+    // Konversi ke URL
+    const makeUrl = (filename) =>
+      `/uploads/${filename}`;
+
+    const gambar1Url = files?.gambarKomponent1?.[0]
+      ? makeUrl(files.gambarKomponent1[0].filename)
+      : existingProjectEvaluation.gambarKomponent1;
+
+    const gambar2Url = files?.gambarKomponent2?.[0]
+      ? makeUrl(files.gambarKomponent2[0].filename)
+      : existingProjectEvaluation.gambarKomponent2;
+
+    const strukturUrls = files?.listGambarStrukturMikro
+      ? files.listGambarStrukturMikro.map((file) =>
+        makeUrl(file.filename)
+      )
+      : existingProjectEvaluation.listGambarStrukturMikro;
+
+    // Update data
+    Object.assign(existingProjectEvaluation, {
+      projectId,
+      nama,
+      tanggal,
+      lokasi,
+      area,
+      posisi,
+      material,
+      gritSandWhell,
+      etsa,
+      kamera,
+      merkMikroskop,
+      perbesaranMikroskop,
+      gambarKomponent1: gambar1Url,
+      gambarKomponent2: gambar2Url,
+      listGambarStrukturMikro: strukturUrls,
+      aiModelFasa,
+      aiModelCrack,
+      aiModelDegradasi
+    });
 
     await existingProjectEvaluation.save();
 
@@ -864,12 +884,12 @@ const editProjectEvaluation = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-
     res.status(500).json({
       message: "Internal server error",
     });
   }
 };
+
 
 const calculateProgressWithMissingFields = (data, modelSchema) => {
   const excludedFields = [
@@ -935,7 +955,12 @@ const getProjectEvaluationById = async (req, res) => {
       data: {
         ...existingProjectEvaluation,
         progress,
-        missingFields
+        missingFields,
+        gambarKomponent1: getAssetURL(existingProjectEvaluation.gambarKomponent1),
+        gambarKomponent2: getAssetURL(existingProjectEvaluation.gambarKomponent2),
+        listGambarStrukturMikro: existingProjectEvaluation.listGambarStrukturMikro.map(
+          (gambar) => getAssetURL(gambar)
+        ),
       }
     });
   } catch (error) {

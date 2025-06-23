@@ -35,6 +35,12 @@ const {
   verifyUser,
 } = require("../controllers/managerController");
 
+const editProjectEvaluationUpload = upload.fields([
+  { name: "gambarKomponent1", maxCount: 1 },
+  { name: "gambarKomponent2", maxCount: 1 },
+  { name: "listGambarStrukturMikro" }, // atau berapa maksimal file yang diperbolehkan
+]);
+
 // ────── Auth & Profile Routes ──────
 router.post("/register", registerUser);
 router.post("/login", loginUser);
@@ -60,7 +66,7 @@ router.post("/projects/get/users", authenticate, getUserProject);
 // ────── Project Evaluation / Pengujian Project Routes ──────
 router.post("/projects/evaluation", authenticate, addProjectEvaluation);
 router.get("/projects/evaluation/:id", authenticate, getProjectEvaluationById);
-router.put("/projects/evaluation/:id", authenticate, editProjectEvaluation);
+router.put("/projects/evaluation/:id", authenticate, editProjectEvaluationUpload, editProjectEvaluation);
 router.delete(
   "/projects/evaluation/:id",
   authenticate,
