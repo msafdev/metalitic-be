@@ -131,10 +131,15 @@ const loginUser = async (req, res) => {
 // Controller: Logout
 const logoutUser = async (req, res) => {
   try {
-    await Session.deleteOne({ userId: req.existingUser._id });
+    const user = req.existingUser;
+
+    await Session.deleteOne({ userId: user._id });
+    
+    res.clearCookie("token");
+    res.clearCookie("role");
     res.status(200).json({ message: "Logout berhasil" });
   } catch (err) {
-    res.status(500).json({ message: "Logout failed" });
+    res.status(500).json({ message: "Logout gagal" });
   }
 };
 
@@ -163,6 +168,41 @@ const getUsers = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: "Get users failed" });
+  }
+};
+
+// Controller: Get all users (admin only)
+const getUserById = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const users = await User.findOne({
+      _id: id,
+    })
+      .select(
+        "username name nomorInduk devisi jabatan email noHp alamat filename filepath isVerify isSuperAdmin isAdmin filename _id"
+      )
+      .lean();
+
+    res.status(200).json({
+      message: "Get user by id success",
+      data: {
+        ...users,
+        role: users.isSuperAdmin
+          ? "superadmin"
+          : users.isAdmin
+          ? "supervisor"
+          : "user",
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Get user by id failed" });
   }
 };
 
@@ -918,7 +958,9 @@ const getProjectEvaluationById = async (req, res) => {
 
     const { id } = req.params;
 
-    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id }).lean();
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({
+      id,
+    }).lean();
 
     if (!existingProjectEvaluation) {
       return res.status(400).json({
@@ -927,7 +969,10 @@ const getProjectEvaluationById = async (req, res) => {
       });
     }
 
-    const { progress, missingFields } = calculateProgressWithMissingFields(existingProjectEvaluation, ProjectEvaluation.schema)
+    const { progress, missingFields } = calculateProgressWithMissingFields(
+      existingProjectEvaluation,
+      ProjectEvaluation.schema
+    );
 
     res.status(200).json({
       status: true,
@@ -935,8 +980,8 @@ const getProjectEvaluationById = async (req, res) => {
       data: {
         ...existingProjectEvaluation,
         progress,
-        missingFields
-      }
+        missingFields,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -987,6 +1032,7 @@ module.exports = {
   loginUser,
   logoutUser,
   getUsers,
+  getUserById,
   getPenguji,
   editUser,
   deleteUser,

@@ -33,16 +33,18 @@ const {
   deleteProjectEvaluationById,
   getPenguji,
   verifyUser,
+  getUserById,
 } = require("../controllers/managerController");
 
 // ────── Auth & Profile Routes ──────
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/logout", logoutUser);
+router.post("/logout", authenticate, logoutUser);
 router.post("/get-image-profile", authenticate, getImageProfile);
 
 // ────── User Management Routes ──────
 router.get("/users", authenticate, getUsers);
+router.get("/users/:id", authenticate, getUserById);
 router.get("/penguji", authenticate, getPenguji);
 router.put("/user/edit", authenticate, upload.single("image"), editUser);
 router.delete("/user/delete", authenticate, deleteUser);
