@@ -18,7 +18,7 @@ const ProjectEvaluationSchema = new mongoose.Schema({
   gritSandWhell: { type: String },
   etsa: { type: String },
   kamera: { type: String },
-  merkMikrosop: { type: String },
+  merkMikroskop: { type: String },
   perbesaranMikroskop: { type: String },
   gambarKomponent1: { type: String },
   gambarKomponent2: { type: String },

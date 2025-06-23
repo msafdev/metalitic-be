@@ -877,7 +877,7 @@ const getProjectEvaluationById = async (req, res) => {
 
     const { id } = req.params;
 
-    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id }).lean();
 
     if (!existingProjectEvaluation) {
       return res.status(400).json({
@@ -886,10 +886,16 @@ const getProjectEvaluationById = async (req, res) => {
       });
     }
 
+    const { progress, missingFields } = calculateProgressWithMissingFields(existingProjectEvaluation, ProjectEvaluation.schema)
+
     res.status(200).json({
       status: true,
       message: "Pengujian Project berhasil ditemukan",
-      data: existingProjectEvaluation
+      data: {
+        ...existingProjectEvaluation,
+        progress,
+        missingFields
+      }
     });
   } catch (error) {
     console.error(error);
