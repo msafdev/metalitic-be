@@ -41,12 +41,21 @@ const getProfile = async (req, res) => {
     }
 
     //! cek apakah semua user terdaftar
-    const foundUser = await User.findById(existingUser._id).select(
-      "name nomorInduk devisi jabatan -_id"
-    );
+    const foundUser = await User.findById(existingUser._id)
+      .select("name nomorInduk devisi jabatan isSuperAdmin isAdmin _id")
+      .lean();
 
     if (foundUser) {
-      return res.status(200).json({ message: foundUser });
+      return res.status(200).json({
+        message: {
+          ...foundUser,
+          role: foundUser.isSuperAdmin
+            ? "superadmin"
+            : foundUser.isAdmin
+            ? "supervisor"
+            : "user",
+        },
+      });
     }
 
     return res.status(400).json({ message: "Data tidak ditemukan" });

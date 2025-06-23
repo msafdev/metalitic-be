@@ -52,76 +52,57 @@ const registerSuperAdmin = async (req, res) => {
     });
     await newUser.save();
 
-    res
-      .status(200)
-      .json({
-        message: "Registrasi berhasil, silahkan tunggu proses verifikasi",
-      });
+    res.status(200).json({
+      message: "Registrasi berhasil, silahkan tunggu proses verifikasi",
+    });
   } catch (error) {
     res.status(500).json({ message: error });
   }
 };
 
 const loginAdmin = async (req, res) => {
-  // res.status(200).json({ message: "test" })
   try {
     const username = sanitize(req.body.username);
     const inputPassword = req.body.password;
 
-    //! jika username sudah exist
-    const existingUser = await User.findOne({ username: username });
-    //! jika tidak exist
-    if (!existingUser || !existingUser.isVerify) {
-      return res.status(200).json({ message: "login failed" });
-    }
-    //! cek apakah sudah di verify dan admin
-    if (existingUser.isVerify && existingUser.isSuperAdmin) {
-      const isVerifyPassword = await verifyPassword(
-        inputPassword,
-        existingUser.password
-      );
-      if (!isVerifyPassword) {
-        return res.status(200).json({ message: "login failed" });
-      }
-
-      // Buat JWT Token
-      const token = jwt.sign(
-        { username: username },
-        process.env.JWT_SECRET_ADMIN,
-        { expiresIn: "1h" }
-      );
-
-      // Simpan JWT dalam HTTP-only cookie
-      res.cookie("token", token, {
-        httpOnly: true, // Mencegah akses JavaScript (XSS)
-        secure: true, // Hanya aktif jika pakai HTTPS
-        sameSite: "Strict", // Mencegah CSRF
-        maxAge: 3600000, // Cookie berlaku 1 jam
-      });
-      res.cookie("role", `superadmin`, {
-        httpOnly: false, // Bisa diakses oleh JavaScript
-        secure: true, // Hanya aktif jika pakai HTTPS
-        sameSite: "Strict", // Mencegah CSRF
-        maxAge: 3600000, // Cookie berlaku 1 jam
-      });
-
-      //! hapus session lama base on userId
-      const resultDelete = await Session.deleteMany({
-        userId: existingUser._id,
-      });
-      //! Simpan token pada db session
-      const newLogin = new Session({
-        userId: existingUser._id,
-        token: token,
-      });
-      await newLogin.save();
-
-      return res.status(200).json({ message: "Login Super Admin berhasil" });
+    const existingUser = await User.findOne({ username });
+    if (!existingUser || !existingUser.isVerify || !existingUser.isSuperAdmin) {
+      return res.status(400).json({ message: "Login failed" });
     }
 
-    res.status(200).json({ message: "login failed" });
+    const isVerifyPassword = await verifyPassword(
+      inputPassword,
+      existingUser.password
+    );
+
+    if (!isVerifyPassword) {
+      return res.status(400).json({ message: "Login failed" });
+    }
+
+    const token = jwt.sign({ username }, process.env.JWT_SECRET_ADMIN, {
+      expiresIn: "1h",
+    });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+      maxAge: 3600000,
+    });
+
+    res.cookie("role", "superadmin", {
+      httpOnly: false,
+      secure: true,
+      sameSite: "Strict",
+      maxAge: 3600000,
+    });
+
+    await Session.deleteMany({ userId: existingUser._id });
+    await new Session({ userId: existingUser._id, token }).save();
+
+    return res.status(200).json({ message: "Login Super Admin berhasil" });
   } catch (error) {
-    res.status(500).json({ message: "login failed" });
+    return res.status(500).json({ message: "Login failed" });
   }
 };
 
@@ -161,13 +142,11 @@ const registerAdmin = async (req, res) => {
     // console.log("existingUserRegister ", existingUserRegister)
 
     if (existingUserRegister) {
-      return res
-        .status(400)
-        .json({
-          status: false,
-          message:
-            "Register failed, username, nomor induk , email atau noHp sudah terdaftar",
-        });
+      return res.status(400).json({
+        status: false,
+        message:
+          "Register failed, username, nomor induk , email atau noHp sudah terdaftar",
+      });
     }
 
     //! hash password
@@ -193,11 +172,9 @@ const registerAdmin = async (req, res) => {
     });
     await newUser.save();
 
-    res
-      .status(200)
-      .json({
-        message: "Registrasi berhasil, silahkan tunggu proses verifikasi",
-      });
+    res.status(200).json({
+      message: "Registrasi berhasil, silahkan tunggu proses verifikasi",
+    });
   } catch (error) {
     res.status(500).json({ message: "register failed" });
   }
