@@ -70,7 +70,7 @@ const registerUser = async (req, res) => {
       filepath: "-",
       isSuperAdmin: false,
       isAdmin: false,
-      isVerify: true,
+      isVerify: false,
     });
 
     await newUser.save();
@@ -93,7 +93,7 @@ const loginUser = async (req, res) => {
 
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Login failed" });
+      return res.status(400).json({ message: "Akun atau password salah" });
     }
 
     const isManager = user.isAdmin;
