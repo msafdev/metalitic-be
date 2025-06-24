@@ -45,8 +45,10 @@ const editProjectEvaluationUpload = upload.fields([
   { name: "listGambarStrukturMikro" }, // atau berapa maksimal file yang diperbolehkan
 ]);
 
+const registerUserUpload = upload.fields([{ name: "avatarUser", maxCount: 1 }]);
+
 // ────── Auth & Profile Routes ──────
-router.post("/register", registerUser);
+router.post("/register", authenticate, registerUserUpload, registerUser);
 router.post("/login", loginUser);
 router.post("/logout", authenticate, logoutUser);
 router.post("/get-image-profile", authenticate, getImageProfile);
@@ -64,14 +66,19 @@ router.get("/projects", authenticate, getAllProject);
 router.get("/projects/:idProject", authenticate, getProjectByIdProject);
 router.post("/projects", authenticate, addProject);
 router.put("/projects/edit", authenticate, editProject);
-router.delete("/projects/delete", authenticate, deleteProject);
+router.delete("/project/delete", authenticate, deleteProject);
 router.post("/projects/add/users", authenticate, addUserProject);
 router.post("/projects/get/users", authenticate, getUserProject);
 
 // ────── Project Evaluation / Pengujian Project Routes ──────
 router.post("/projects/evaluation", authenticate, addProjectEvaluation);
 router.get("/projects/evaluation/:id", authenticate, getProjectEvaluationById);
-router.put("/projects/evaluation/:id", authenticate, editProjectEvaluationUpload, editProjectEvaluation);
+router.put(
+  "/projects/evaluation/:id",
+  authenticate,
+  editProjectEvaluationUpload,
+  editProjectEvaluation
+);
 router.delete(
   "/projects/evaluation/:id",
   authenticate,

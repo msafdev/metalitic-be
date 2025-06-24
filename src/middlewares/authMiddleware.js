@@ -6,8 +6,6 @@ const authenticate = async (req, res, next) => {
   try {
     const { token, role } = req.cookies;
 
-    console.log({ token, role });
-
     if (!token) {
       return res
         .status(401)

@@ -22,6 +22,12 @@ const isUnauthorized = (user) => {
 // Controller: Register
 const registerUser = async (req, res) => {
   try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const {
       username,
       password,
@@ -32,9 +38,11 @@ const registerUser = async (req, res) => {
       email,
       noHp,
       alamat,
+      isAdmin,
     } = req.body;
 
-    // Check duplicates
+    const files = req.files;
+
     const duplicateChecks = await Promise.all([
       User.findOne({ username }),
       User.findOne({ nomorInduk }),
@@ -56,6 +64,11 @@ const registerUser = async (req, res) => {
 
     const hashedPassword = await hashPassword(password);
 
+    const makeUrl = (filename) => `/uploads/${filename}`;
+
+    const avatarUserUrl =
+      files?.avatarUser?.[0] && makeUrl(files.avatarUser[0].filename);
+
     const newUser = new User({
       username,
       password: hashedPassword,
@@ -67,16 +80,17 @@ const registerUser = async (req, res) => {
       noHp,
       alamat,
       projects: [],
-      filename: "-",
-      filepath: "-",
+      avatarUser: avatarUserUrl,
       isSuperAdmin: false,
-      isAdmin: false,
+      isAdmin,
       isVerify: false,
     });
 
     await newUser.save();
+
     res.status(200).json({ status: true, message: "Registrasi user berhasil" });
-  } catch (err) {
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Register failed" });
   }
 };
@@ -160,12 +174,19 @@ const getUsers = async (req, res) => {
     }
 
     const users = await User.find(query).select(
-      "username name nomorInduk devisi jabatan email noHp alamat isVerify filename _id"
+      "avatarUrl username name nomorInduk devisi jabatan email noHp alamat isVerify isSuperAdmin isAdmin filename _id"
     );
 
     res.status(200).json({
       message: "Get users success",
-      data: users,
+      data: users.map((user) => ({
+        ...user.toObject(),
+        role: user.isSuperAdmin
+          ? "superadmin"
+          : user.isAdmin
+            ? "supervisor"
+            : "user",
+      })),
     });
   } catch (err) {
     res.status(500).json({ message: "Get users failed" });
@@ -187,7 +208,7 @@ const getUserById = async (req, res) => {
       _id: id,
     })
       .select(
-        "username name nomorInduk devisi jabatan email noHp alamat filename filepath isVerify isSuperAdmin isAdmin filename _id"
+        "avatarUser username name nomorInduk devisi jabatan email noHp alamat filename filepath isVerify isSuperAdmin isAdmin filename _id"
       )
       .lean();
 
@@ -240,7 +261,6 @@ const verifyUser = async (req, res) => {
     const usernameVerify = req.body.username;
     const isVerify = req.body.isVerify;
 
-    console.log(existingUser);
     if (!existingUser || !existingUser.isAdmin) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -269,6 +289,7 @@ const verifyUser = async (req, res) => {
 const editUser = async (req, res) => {
   try {
     const admin = req.existingUser;
+
     const { id, name, devisi, jabatan, email, noHp, alamat, password } =
       req.body;
 
@@ -277,9 +298,6 @@ const editUser = async (req, res) => {
     }
 
     const user = await User.findById(id);
-    if (!user || user.isSuperAdmin) {
-      return res.status(401).json({ message: "Unauthorized user" });
-    }
 
     const [emailOwner, phoneOwner] = await Promise.all([
       User.findOne({ email: { $regex: `^${email}$`, $options: "i" } }),
@@ -453,7 +471,6 @@ const getProjectByIdProject = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
     res.status(500).json({ message: "Get Project failed" });
   }
 };
@@ -583,12 +600,14 @@ const deleteProject = async (req, res) => {
     const deleted = await Project.findByIdAndDelete(id);
 
     if (!deleted) {
-      return res.status(400).json({ message: "Delete project failed" });
+      return res.status(400).json({ message: "Gagal menghapus proyek" });
     }
 
-    res.status(200).json({ message: "Project berhasil dihapus" });
+    res.status(200).json({ message: "Berhasil menghapus proyek" });
   } catch (err) {
-    res.status(500).json({ message: "Delete Project failed" });
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan saat menghapus proyek" });
   }
 };
 
@@ -862,7 +881,7 @@ const editProjectEvaluation = async (req, res) => {
       perbesaranMikroskop,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi
+      aiModelDegradasi,
     } = req.body;
 
     const files = req.files;
@@ -876,8 +895,7 @@ const editProjectEvaluation = async (req, res) => {
     }
 
     // Konversi ke URL
-    const makeUrl = (filename) =>
-      `/uploads/${filename}`;
+    const makeUrl = (filename) => `/uploads/${filename}`;
 
     const gambar1Url = files?.gambarKomponent1?.[0]
       ? makeUrl(files.gambarKomponent1[0].filename)
@@ -888,9 +906,7 @@ const editProjectEvaluation = async (req, res) => {
       : existingProjectEvaluation.gambarKomponent2;
 
     const strukturUrls = files?.listGambarStrukturMikro
-      ? files.listGambarStrukturMikro.map((file) =>
-        makeUrl(file.filename)
-      )
+      ? files.listGambarStrukturMikro.map((file) => makeUrl(file.filename))
       : existingProjectEvaluation.listGambarStrukturMikro;
 
     // Update data
@@ -912,13 +928,12 @@ const editProjectEvaluation = async (req, res) => {
       listGambarStrukturMikro: strukturUrls,
       aiModelFasa,
       aiModelCrack,
-      aiModelDegradasi
+      aiModelDegradasi,
     });
 
     await existingProjectEvaluation.save();
 
     res.status(200).json({
-      status: true,
       message: "Pengujian Project berhasil diubah",
       data: existingProjectEvaluation,
     });
@@ -929,7 +944,6 @@ const editProjectEvaluation = async (req, res) => {
     });
   }
 };
-
 
 const calculateProgressWithMissingFields = (data, modelSchema) => {
   const excludedFields = [
@@ -1006,7 +1020,14 @@ const getProjectEvaluationById = async (req, res) => {
         listGambarStrukturMikro: existingProjectEvaluation.listGambarStrukturMikro.map(
           (gambar) => getAssetURL(gambar)
         ),
-      }
+        gambarKomponent2: getAssetURL(
+          existingProjectEvaluation.gambarKomponent2
+        ),
+        listGambarStrukturMikro:
+          existingProjectEvaluation.listGambarStrukturMikro.map((gambar) =>
+            getAssetURL(gambar)
+          ),
+      },
     });
   } catch (error) {
     console.error(error);
