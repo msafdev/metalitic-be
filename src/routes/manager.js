@@ -34,6 +34,9 @@ const {
   getPenguji,
   verifyUser,
   getUserById,
+  deleteProjectEvaluationImageComponent1,
+  deleteProjectEvaluationImageComponent2,
+  deleteProjectEvaluationImageListMicroStructure,
 } = require("../controllers/managerController");
 
 const editProjectEvaluationUpload = upload.fields([
@@ -74,6 +77,9 @@ router.delete(
   authenticate,
   deleteProjectEvaluationById
 );
+router.delete("/projects/evaluation/:id/image-component-1", authenticate, deleteProjectEvaluationImageComponent1);
+router.delete("/projects/evaluation/:id/image-component-2", authenticate, deleteProjectEvaluationImageComponent2);
+router.delete("/projects/evaluation/:id/image-list-micro-structure", authenticate, deleteProjectEvaluationImageListMicroStructure);
 
 // ────── Service Requester / Peminta Jasa Routes ──────
 router.get("/service-requester", authenticate, getServiceRequester);

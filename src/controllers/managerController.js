@@ -1001,8 +1001,8 @@ const getProjectEvaluationById = async (req, res) => {
         ...existingProjectEvaluation,
         progress,
         missingFields,
-        gambarKomponent1: getAssetURL(existingProjectEvaluation.gambarKomponent1),
-        gambarKomponent2: getAssetURL(existingProjectEvaluation.gambarKomponent2),
+        gambarKomponent1: existingProjectEvaluation.gambarKomponent1 ? getAssetURL(existingProjectEvaluation.gambarKomponent1) : null,
+        gambarKomponent2: existingProjectEvaluation.gambarKomponent2 ? getAssetURL(existingProjectEvaluation.gambarKomponent2) : null,
         listGambarStrukturMikro: existingProjectEvaluation.listGambarStrukturMikro.map(
           (gambar) => getAssetURL(gambar)
         ),
@@ -1051,6 +1051,117 @@ const deleteProjectEvaluationById = async (req, res) => {
   }
 };
 
+const deleteProjectEvaluationImageComponent1 = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    existingProjectEvaluation.gambarKomponent1 = null;
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Gambar Komponen 1 Pengujian berhasil dihapus",
+      data: existingProjectEvaluation,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+const deleteProjectEvaluationImageComponent2 = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    existingProjectEvaluation.gambarKomponent2 = null;
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Gambar Komponen 1 Pengujian berhasil dihapus",
+      data: existingProjectEvaluation,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+const deleteProjectEvaluationImageListMicroStructure = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    existingProjectEvaluation.listGambarStrukturMikro = [];
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      status: true,
+      message: "List Gambar Struktur Mikro Pengujian berhasil dihapus",
+      data: existingProjectEvaluation,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   getImageProfile,
   registerUser,
@@ -1076,4 +1187,7 @@ module.exports = {
   editProjectEvaluation,
   getProjectEvaluationById,
   deleteProjectEvaluationById,
+  deleteProjectEvaluationImageComponent1,
+  deleteProjectEvaluationImageComponent2,
+  deleteProjectEvaluationImageListMicroStructure
 };
