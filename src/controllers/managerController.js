@@ -455,6 +455,8 @@ const getProjectByIdProject = async (req, res) => {
           status: evaluation.status,
           progress,
           missingFields,
+          lokasi: evaluation.lokasi,
+          material: evaluation.material,
           createdAt: evaluation.createdAt,
           updatedAt: evaluation.updatedAt,
         };
@@ -933,6 +935,21 @@ const editProjectEvaluation = async (req, res) => {
 
     await existingProjectEvaluation.save();
 
+    const { progress } = calculateProgressWithMissingFields(
+      existingProjectEvaluation,
+      ProjectEvaluation.schema
+    );
+
+    console.log({ progress });
+    if (progress === 100) {
+      existingProjectEvaluation.status = "COMPLETED"
+    } else if (progress > 6) {
+      existingProjectEvaluation.status = "PROCESSING"
+    }
+
+    console.log({ existingProjectEvaluation });
+    await existingProjectEvaluation.save();
+
     res.status(200).json({
       message: "Pengujian Project berhasil diubah",
       data: existingProjectEvaluation,
@@ -944,6 +961,74 @@ const editProjectEvaluation = async (req, res) => {
     });
   }
 };
+
+const updateProjectEvaluationStatusToPending = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    existingProjectEvaluation.status = "PENDING";
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      message: "Pengujian Project berhasil diubah",
+      data: existingProjectEvaluation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
+
+const updateProjectEvaluationStatusToProcessing = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    existingProjectEvaluation.status = "PROCESSING";
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      message: "Pengujian Project berhasil diubah",
+      data: existingProjectEvaluation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
 
 const calculateProgressWithMissingFields = (data, modelSchema) => {
   const excludedFields = [
@@ -1003,6 +1088,8 @@ const getProjectEvaluationById = async (req, res) => {
       });
     }
 
+    const project = await Project.findOne({ idProject: existingProjectEvaluation.projectId }).select("idProject namaProject pemintaJasa tanggalOrderMasuk penguji").lean();
+
     const { progress, missingFields } = calculateProgressWithMissingFields(
       existingProjectEvaluation,
       ProjectEvaluation.schema
@@ -1013,6 +1100,7 @@ const getProjectEvaluationById = async (req, res) => {
       message: "Pengujian Project berhasil ditemukan",
       data: {
         ...existingProjectEvaluation,
+        project,
         progress,
         missingFields,
         gambarKomponent1: existingProjectEvaluation.gambarKomponent1 ? getAssetURL(existingProjectEvaluation.gambarKomponent1) : null,
@@ -1020,13 +1108,6 @@ const getProjectEvaluationById = async (req, res) => {
         listGambarStrukturMikro: existingProjectEvaluation.listGambarStrukturMikro.map(
           (gambar) => getAssetURL(gambar)
         ),
-        gambarKomponent2: getAssetURL(
-          existingProjectEvaluation.gambarKomponent2
-        ),
-        listGambarStrukturMikro:
-          existingProjectEvaluation.listGambarStrukturMikro.map((gambar) =>
-            getAssetURL(gambar)
-          ),
       },
     });
   } catch (error) {
@@ -1210,5 +1291,7 @@ module.exports = {
   deleteProjectEvaluationById,
   deleteProjectEvaluationImageComponent1,
   deleteProjectEvaluationImageComponent2,
-  deleteProjectEvaluationImageListMicroStructure
+  deleteProjectEvaluationImageListMicroStructure,
+  updateProjectEvaluationStatusToPending,
+  updateProjectEvaluationStatusToProcessing,
 };

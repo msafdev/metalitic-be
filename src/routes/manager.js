@@ -37,6 +37,8 @@ const {
   deleteProjectEvaluationImageComponent1,
   deleteProjectEvaluationImageComponent2,
   deleteProjectEvaluationImageListMicroStructure,
+  updateProjectEvaluationStatusToPending,
+  updateProjectEvaluationStatusToProcessing,
 } = require("../controllers/managerController");
 
 const editProjectEvaluationUpload = upload.fields([
@@ -79,6 +81,8 @@ router.put(
   editProjectEvaluationUpload,
   editProjectEvaluation
 );
+router.put("/projects/evaluation/:id/status/pending", updateProjectEvaluationStatusToPending);
+router.put("/projects/evaluation/:id/status/processing", authenticate, updateProjectEvaluationStatusToProcessing);
 router.delete(
   "/projects/evaluation/:id",
   authenticate,
