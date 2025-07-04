@@ -208,8 +208,12 @@ const getUserById = async (req, res) => {
       _id: id,
     })
       .select(
-        "avatarUser username name nomorInduk devisi jabatan email noHp alamat filename filepath isVerify isSuperAdmin isAdmin filename _id"
+        "avatarUser username name nomorInduk devisi jabatan email noHp alamat filename filepath isVerify isSuperAdmin isAdmin filename _id projects"
       )
+      .populate({
+        path: "projects",
+        select: "_id idProject namaProject pemintaJasa tanggalOrderMasuk createdAt updatedAt",
+      })
       .lean();
 
     res.status(200).json({
@@ -424,7 +428,6 @@ const getAllProject = async (req, res) => {
 const getProjectByIdProject = async (req, res) => {
   try {
     const user = req.existingUser;
-
     if (isUnauthorized(user)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -433,35 +436,23 @@ const getProjectByIdProject = async (req, res) => {
 
     const [project, projectEvaluations] = await Promise.all([
       Project.findOne({ idProject })
-        .select(
-          "_id idProject namaProject pemintaJasa tanggalOrderMasuk createdAt updatedAt penguji"
-        )
+        .populate("penguji", "_id name") // populate data user
         .lean(),
       ProjectEvaluation.find({ projectId: idProject }).lean(),
     ]);
 
-    // Tambahkan progress untuk setiap evaluation
-    const projectEvaluationsWithProgress = projectEvaluations.map(
-      (evaluation) => {
-        const { progress, missingFields } = calculateProgressWithMissingFields(
-          evaluation,
-          ProjectEvaluation.schema
-        );
+    const projectEvaluationsWithProgress = projectEvaluations.map((evaluation) => {
+      const { progress, missingFields } = calculateProgressWithMissingFields(
+        evaluation,
+        ProjectEvaluation.schema
+      );
 
-        return {
-          id: evaluation.id,
-          projectId: evaluation.projectId,
-          nama: evaluation.nama,
-          status: evaluation.status,
-          progress,
-          missingFields,
-          lokasi: evaluation.lokasi,
-          material: evaluation.material,
-          createdAt: evaluation.createdAt,
-          updatedAt: evaluation.updatedAt,
-        };
-      }
-    );
+      return {
+        ...evaluation,
+        progress,
+        missingFields,
+      };
+    });
 
     res.status(200).json({
       status: true,
@@ -477,6 +468,7 @@ const getProjectByIdProject = async (req, res) => {
   }
 };
 
+
 // Controller: Add project
 const addProject = async (req, res) => {
   try {
@@ -490,36 +482,34 @@ const addProject = async (req, res) => {
     const existingProject = await Project.findOne({ namaProject });
 
     if (existingProject) {
-      return res
-        .status(400)
-        .json({ status: false, message: "Project sudah terdaftar" });
+      return res.status(400).json({ message: "Project sudah terdaftar" });
     }
 
-    const idProject = `MTL-${String(Math.floor(Math.random() * 1000)).padStart(
-      3,
-      "0"
-    )}`;
+    const idProject = `MTL-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
 
     const newProject = new Project({
       idProject,
       namaProject,
       pemintaJasa,
       tanggalOrderMasuk,
-      penguji,
+      penguji, // langsung array of ObjectId
     });
 
     await newProject.save();
 
-    res.status(200).json({
-      status: true,
-      message: "Project berhasil ditambahkan",
-      data: newProject,
-    });
+    // Tambahkan projectId ke masing-masing user
+    await User.updateMany(
+      { _id: { $in: penguji } },
+      { $addToSet: { projects: newProject._id } }
+    );
+
+    res.status(200).json({ status: true, message: "Project berhasil ditambahkan", data: newProject });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Add Project failed" });
   }
 };
+
 
 // Controller: Edit project
 const editProject = async (req, res) => {
@@ -529,22 +519,8 @@ const editProject = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const {
-      id,
-      namaProject,
-      permintaanJasa,
-      sample,
-      tglPengujian,
-      lokasiPengujian,
-      areaPengujian,
-      posisiPengujian,
-      material,
-      GritSandWhell,
-      ETSA,
-      kamera,
-      mikrosopMerk,
-      mikrosopZoom,
-    } = req.body;
+    const { namaProject, pemintaJasa, tanggalOrderMasuk, penguji } = req.body;
+    const id = req.params.id;
 
     const existingProject = await Project.findById(id);
     if (!existingProject) {
@@ -554,41 +530,48 @@ const editProject = async (req, res) => {
     const duplicateProject = await Project.findOne({ namaProject });
     if (
       duplicateProject &&
-      duplicateProject.namaProject !== existingProject.namaProject
+      duplicateProject._id.toString() !== existingProject._id.toString()
     ) {
-      return res.status(200).json({
-        status: false,
-        message: "Edit gagal, nama project sudah digunakan",
-      });
+      return res.status(400).json({ message: "Edit gagal, nama project sudah digunakan" });
     }
 
+    // Hitung perubahan penguji
+    const oldPenguji = existingProject.penguji.map(p => p.toString());
+    const newPenguji = penguji;
+
+    const toAdd = newPenguji.filter(id => !oldPenguji.includes(id));
+    const toRemove = oldPenguji.filter(id => !newPenguji.includes(id));
+
+    // Update Project
     const updated = await Project.findByIdAndUpdate(
       id,
       {
         namaProject,
-        permintaanJasa,
-        sample,
-        tglPengujian: convertDate(tglPengujian),
-        lokasiPengujian,
-        areaPengujian,
-        posisiPengujian,
-        material,
-        GritSandWhell,
-        ETSA,
-        kamera,
-        mikrosopMerk,
-        mikrosopZoom,
+        pemintaJasa,
+        tanggalOrderMasuk,
+        penguji: newPenguji,
       },
       { new: true }
     );
 
-    res
-      .status(200)
-      .json({ status: true, message: "Edit berhasil", data: updated });
+    // Update users
+    await User.updateMany(
+      { _id: { $in: toAdd } },
+      { $addToSet: { projects: updated._id } }
+    );
+
+    await User.updateMany(
+      { _id: { $in: toRemove } },
+      { $pull: { projects: updated._id } }
+    );
+
+    res.status(200).json({ status: true, message: "Edit berhasil", data: updated });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Edit Project failed" });
   }
 };
+
 
 // Controller: Delete project
 const deleteProject = async (req, res) => {
@@ -598,18 +581,27 @@ const deleteProject = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { id } = req.body;
-    const deleted = await Project.findByIdAndDelete(id);
+    const { id } = req.params;
+    const project = await Project.findById(id);
+    if (!project) {
+      return res.status(404).json({ message: "Project tidak ditemukan" });
+    }
 
+    // Hapus project ID dari user
+    await User.updateMany(
+      { _id: { $in: project.penguji } },
+      { $pull: { projects: project._id } }
+    );
+
+    const deleted = await Project.findByIdAndDelete(id);
     if (!deleted) {
       return res.status(400).json({ message: "Gagal menghapus proyek" });
     }
 
     res.status(200).json({ message: "Berhasil menghapus proyek" });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Terjadi kesalahan saat menghapus proyek" });
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan saat menghapus proyek" });
   }
 };
 
@@ -823,7 +815,7 @@ const addProjectEvaluation = async (req, res) => {
     const newProjectEvaluation = new ProjectEvaluation({
       id,
       projectId,
-      status: "PENDING",
+      status: "DRAFT",
       nama,
       tanggal,
       lokasi,
@@ -940,14 +932,12 @@ const editProjectEvaluation = async (req, res) => {
       ProjectEvaluation.schema
     );
 
-    console.log({ progress });
     if (progress === 100) {
       existingProjectEvaluation.status = "COMPLETED"
     } else if (progress > 6) {
       existingProjectEvaluation.status = "PROCESSING"
     }
 
-    console.log({ existingProjectEvaluation });
     await existingProjectEvaluation.save();
 
     res.status(200).json({

@@ -11,7 +11,7 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true },
     noHp: { type: String, required: true },
     alamat: { type: String, required: true },
-    projects: { type: [String], required: true },
+    projects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }],
     avatarUser: { type: String },
     isSuperAdmin: { type: Boolean, required: true },
     isAdmin: { type: Boolean, required: true },
