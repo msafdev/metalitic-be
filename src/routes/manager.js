@@ -58,18 +58,19 @@ const uploadImageAiModel = upload.fields([
 ]);
 
 const registerUserUpload = upload.fields([{ name: "avatarUser", maxCount: 1 }]);
+const userUpload = upload.fields([{ name: "avatarUser", maxCount: 1 }]);
 
 // ────── Auth & Profile Routes ──────
-router.post("/register", authenticate, registerUserUpload, registerUser);
+router.post("/register", authenticate, userUpload, registerUser);
 router.post("/login", loginUser);
 router.post("/logout", authenticate, logoutUser);
 router.post("/get-image-profile", authenticate, getImageProfile);
 
 // ────── User Management Routes ──────
 router.get("/users", authenticate, getUsers);
-router.get("/users/:id", authenticate, getUserById);
 router.get("/penguji", authenticate, getPenguji);
-router.put("/user/edit", authenticate, upload.single("image"), editUser);
+router.get("/user/:id", authenticate, getUserById);
+router.put("/user/:id", authenticate, userUpload, editUser);
 router.delete("/user/delete", authenticate, deleteUser);
 router.post("/user/verify", authenticate, verifyUser);
 
