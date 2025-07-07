@@ -39,12 +39,22 @@ const {
   deleteProjectEvaluationImageListMicroStructure,
   updateProjectEvaluationStatusToPending,
   updateProjectEvaluationStatusToProcessing,
+  getAiModelList,
+  analyzeProjectEvaluation,
+  getAnalyzedResult,
+  updateAnalyzedResult,
+  getAiClasificationList,
+  uploadImageModel,
 } = require("../controllers/managerController");
 
 const editProjectEvaluationUpload = upload.fields([
   { name: "gambarKomponent1", maxCount: 1 },
   { name: "gambarKomponent2", maxCount: 1 },
   { name: "listGambarStrukturMikro" }, // atau berapa maksimal file yang diperbolehkan
+]);
+
+const uploadImageAiModel = upload.fields([
+  { name: "imageList" }, // atau berapa maksimal file yang diperbolehkan
 ]);
 
 const registerUserUpload = upload.fields([{ name: "avatarUser", maxCount: 1 }]);
@@ -67,10 +77,19 @@ router.post("/user/verify", authenticate, verifyUser);
 router.get("/projects", authenticate, getAllProject);
 router.get("/projects/:idProject", authenticate, getProjectByIdProject);
 router.post("/projects", authenticate, addProject);
-router.put("/projects/edit", authenticate, editProject);
-router.delete("/project/delete", authenticate, deleteProject);
+router.put("/projects/:id", authenticate, editProject);
+router.delete("/project/:id", authenticate, deleteProject);
 router.post("/projects/add/users", authenticate, addUserProject);
 router.post("/projects/get/users", authenticate, getUserProject);
+
+// ────── AI Settings Routes / Pengaturan AI Routes ──────
+router.post("/ai-configuration/upload-image", authenticate, uploadImageAiModel, uploadImageModel);
+router.post("/projects/evaluation/ai-model-list", authenticate, getAiModelList);
+router.get("/projects/evaluation/ai-model-list", authenticate, getAiModelList);
+router.get("/projects/evaluation/ai-clasification-list", authenticate, getAiClasificationList);
+router.get("/projects/evaluation/:id/analyzed-result", authenticate, getAnalyzedResult);
+router.put("/projects/evaluation/:id/analyzed-result", authenticate, updateAnalyzedResult);
+router.post("/projects/evaluation/:id/analyze-with-ai", authenticate, analyzeProjectEvaluation);
 
 // ────── Project Evaluation / Pengujian Project Routes ──────
 router.post("/projects/evaluation", authenticate, addProjectEvaluation);

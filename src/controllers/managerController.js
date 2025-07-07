@@ -10,10 +10,16 @@ const Project = require("../models/Project");
 const ServiceRequester = require("../models/ServiceRequester");
 const ProjectEvaluation = require("../models/ProjectEvaluation");
 const { getAssetURL } = require("../utils/assets");
+const AnalyzedResult = require("../models/AnalyzedResult");
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
+
+const makeUrl = (filename) => {
+  const folder = process.env.UPLOAD_FOLDER || "uploads";
+  return `/${folder}/${filename}`;
+};
 
 const isUnauthorized = (user) => {
   !user || !user.isVerify || !user.isAdmin;
@@ -63,8 +69,6 @@ const registerUser = async (req, res) => {
       return res.json({ status: false, message: "Nomor HP sudah digunakan" });
 
     const hashedPassword = await hashPassword(password);
-
-    const makeUrl = (filename) => `/uploads/${filename}`;
 
     const avatarUserUrl =
       files?.avatarUser?.[0] && makeUrl(files.avatarUser[0].filename);
@@ -436,7 +440,7 @@ const getProjectByIdProject = async (req, res) => {
 
     const [project, projectEvaluations] = await Promise.all([
       Project.findOne({ idProject })
-        .populate("penguji", "_id name") // populate data user
+        .populate("penguji", "_id name jabatan") // populate data user
         .lean(),
       ProjectEvaluation.find({ projectId: idProject }).lean(),
     ]);
@@ -522,7 +526,7 @@ const editProject = async (req, res) => {
     const { namaProject, pemintaJasa, tanggalOrderMasuk, penguji } = req.body;
     const id = req.params.id;
 
-    const existingProject = await Project.findById(id);
+    const existingProject = await Project.findOne({ idProject: id });
     if (!existingProject) {
       return res.status(404).json({ message: "Project tidak ditemukan" });
     }
@@ -543,8 +547,8 @@ const editProject = async (req, res) => {
     const toRemove = oldPenguji.filter(id => !newPenguji.includes(id));
 
     // Update Project
-    const updated = await Project.findByIdAndUpdate(
-      id,
+    const updated = await Project.findOneAndUpdate(
+      { idProject: id },
       {
         namaProject,
         pemintaJasa,
@@ -888,9 +892,6 @@ const editProjectEvaluation = async (req, res) => {
       });
     }
 
-    // Konversi ke URL
-    const makeUrl = (filename) => `/uploads/${filename}`;
-
     const gambar1Url = files?.gambarKomponent1?.[0]
       ? makeUrl(files.gambarKomponent1[0].filename)
       : existingProjectEvaluation.gambarKomponent1;
@@ -940,9 +941,18 @@ const editProjectEvaluation = async (req, res) => {
 
     await existingProjectEvaluation.save();
 
+    const result = existingProjectEvaluation.toObject();
+
     res.status(200).json({
       message: "Pengujian Project berhasil diubah",
-      data: existingProjectEvaluation,
+      data: {
+        ...result,
+        gambarKomponent1: result.gambarKomponent1 ? getAssetURL(result.gambarKomponent1) : null,
+        gambarKomponent2: result.gambarKomponent2 ? getAssetURL(result.gambarKomponent2) : null,
+        listGambarStrukturMikro: result.listGambarStrukturMikro.map(
+          (gambar) => getAssetURL(gambar)
+        ),
+      },
     });
   } catch (error) {
     console.error(error);
@@ -1108,6 +1118,64 @@ const getProjectEvaluationById = async (req, res) => {
   }
 };
 
+const getAiModelList = async (req, res) => {
+  try {
+    // ===== TODO: Untuk data dropdown di FE page Pengujian =======
+    // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
+    const aiModels = {
+      fasa: [
+        "Fasa 1", "Fasa 2", "Fasa 3", "Fasa 4"
+      ],
+      crack: [
+        "Crack 1", "Crack 2", "Crack 3", "Crack 4"
+      ],
+      degradasi: [
+        "Degradasi 1", "Degradasi 2", "Degradasi 3", "Degradasi 4"
+      ]
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Get all ai model success",
+      data: aiModels
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
+
+const getAiClasificationList = async (req, res) => {
+  try {
+    // ===== TODO: Untuk data dropdown di FE page Update Analyzed Result =======
+    // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
+    const aiModels = {
+      fasa: [
+        "Austenite", "Martensite", "Ferrite", "Bainite"
+      ],
+      crack: [
+        "Terdeteksi", "Tidak Terdeteksi"
+      ],
+      degradasi: [
+        "ERA A", "ERA B", "ERA C", "ERA D"
+      ]
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Get all ai clasification success",
+      data: aiModels
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+}
+
 const deleteProjectEvaluationById = async (req, res) => {
   try {
     const user = req.existingUser;
@@ -1254,6 +1322,322 @@ const deleteProjectEvaluationImageListMicroStructure = async (req, res) => {
   }
 };
 
+const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
+  // ====== TODO: HIT AI EXTERNAL API ======
+  // disini seharusnya anda hit endpoint AI external API, dibawah disimulasi dengan me return contoh data response dari AI external API
+  return {
+    hasilAnalisa: req.listGambarStrukturMikro.map((item) => ({
+      image: item,
+      fasa: {
+        image: item,
+        penguji: "Samwell Tarley",
+        tanggalUpdate: "2025-01-15",
+        mode: "AI", // AI | MANUAL
+        hasilKlasifikasiAI: "Austenite",
+        modelAI: "Model AI FASA 12",
+        confidence: 90.3,
+        hasilKlasifikasiManual: null // string | null
+      },
+      crack: {
+        image: item,
+        penguji: "Samwell Tarley",
+        tanggalUpdate: "2025-01-15",
+        mode: "MANUAL", // AI | MANUAL
+        hasilKlasifikasiAI: "Terdeteksi",
+        modelAI: "Model AI Crack 12",
+        confidence: 90.3,
+        hasilKlasifikasiManual: "Tidak Terdeteksi" // string | null
+      },
+      degradasi: {
+        image: item,
+        penguji: "Samwell Tarley",
+        tanggalUpdate: "2025-01-15",
+        mode: "AI", // AI | MANUAL
+        hasilKlasifikasiAI: "ERA A",
+        modelAI: "Model AI Degradasi 12",
+        confidence: 90.3,
+        hasilKlasifikasiManual: null // string | null
+      }
+    })),
+    kesimpulan: {
+      strukturMikro: "Austenite",
+      fiturMikroskopik: "Terdeteksi ada nya microcrack",
+      damageClass: "Degradasi ERA 1",
+      hardness: "...",
+      rekomendasi: "REPAIRABLE (LIFE CONSUMED 80%, LIMITED SERVICE)",
+    },
+  }
+}
+
+const analyzeProjectEvaluation = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+    const requestBody = req.body;
+    // contoh isi dari requestBody dari FE
+    // {
+    //   projectEvaluationId: "MTL-062-001",
+    //   projectId: "MTL-062",
+    //   nama: "Pengujian 1",
+    //   listGambarStrukturMikro: [
+    //     "http://localhost:1945/uploads/20250705_145233_jxjar.jpg",
+    //     "http://localhost:1945/uploads/20250705_145233_isude8.png",
+    //     "http://localhost:1945/uploads/20250705_145233_1xlum6.png",
+    //     "http://localhost:1945/uploads/20250705_145233_or2858.png",
+    //     "http://localhost:1945/uploads/20250705_145233_ahn0lu.png"
+    //   ],
+    //   aiModelCrack: "Crack 2",
+    //   aiModelDegradasi: "Degradasi 1",
+    //   aiModelFasa: "Fasa 1",
+    //   area: "sekolah",
+    //   etsa: "ETSA",
+    //   gritSandWhell: "GSW",
+    //   kamera: "Cam",
+    //   lokasi: "Semarang",
+    //   material: "material test",
+    //   merkMikroskop: "merk ",
+    //   perbesaranMikroskop: "4x",
+    //   posisi: "test posisi",
+    //   tanggal: "2025-07-05",
+    //   gambarKomponent1: "http://localhost:1945/uploads/20250705_145233_8s21g6.jpg",
+    //   gambarKomponent2: "http://localhost:1945/uploads/20250705_145233_91t8ld.png",
+    // }
+
+    const existingProjectEvaluation = await ProjectEvaluation.findOne({ id });
+
+    if (!existingProjectEvaluation) {
+      return res.status(400).json({
+        status: false,
+        message: `Pengujian Project dengan id ${id} tidak ditemukan`,
+      });
+    }
+
+    // ======= TODO: Untuk Proses Analisa Pengujian Project ============
+    // proses hit API External untuk Analisa AI Model nya bisa dilakukan dibawah ini 
+    const existingProject = await Project.findOne({
+      idProject: requestBody.projectId,
+    });
+
+    // 1. ambil data dari request body untuk di hit ke API External
+    const requestBodyForApiExternal = {
+      nama: requestBody.nama,
+      listGambarStrukturMikro: requestBody.listGambarStrukturMikro,
+      aiModelCrack: requestBody.aiModelCrack,
+      aiModelDegradasi: requestBody.aiModelDegradasi,
+      aiModelFasa: requestBody.aiModelFasa,
+      area: requestBody.area,
+      etsa: requestBody.etsa,
+      gritSandWhell: requestBody.gritSandWhell,
+      kamera: requestBody.kamera,
+      lokasi: requestBody.lokasi,
+      material: requestBody.material,
+      merkMikroskop: requestBody.merkMikroskop,
+      perbesaranMikroskop: requestBody.perbesaranMikroskop,
+      posisi: requestBody.posisi,
+      tanggal: requestBody.tanggal,
+      gambarKomponent1: requestBody.gambarKomponent1,
+      gambarKomponent2: requestBody.gambarKomponent2,
+      project: {
+        namaProject: existingProject.namaProject,
+        pemintaJasa: existingProject.pemintaJasa,
+        tanggalOrderMasuk: existingProject.tanggalOrderMasuk,
+        penguji: existingProject.penguji
+      },
+    }
+
+    // 2. hit API External dengan membawa data Pengujian Project,
+    const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal);
+
+    // 3. masukkan hasil dari "resultFromExternalApi" ke variabel "analyzedResultFromExternalAPI" 
+    // dibawah ini disimulasikan dengan data dummy, anda seharusnya mengambil data tersebut dari API External
+    // pastikan struktur data sesuai dengan yang diharapkan (sesuai dengan struktur data dummy dibawah ini)
+    const analyzedResultToBeSaved = {
+      projectEvaluationId: requestBody.projectEvaluationId,
+      projectId: requestBody.projectId,
+      nama: requestBody.nama,
+      status: "COMPLETED",
+      progress: 100,
+      detail: {
+        pemintaJasa: existingProject.pemintaJasa,
+        tanggalOrderMasuk: existingProject.tanggalOrderMasuk,
+        lokasi: requestBody.lokasi,
+        area: requestBody.area,
+        posisi: requestBody.posisi,
+        material: requestBody.material,
+        gritSandWhell: requestBody.gritSandWhell,
+        etsa: requestBody.etsa,
+        kamera: requestBody.kamera,
+        merkMikroskop: requestBody.merkMikroskop,
+        perbesaranMikroskop: requestBody.perbesaranMikroskop,
+        gambarKomponent1: requestBody.gambarKomponent1,
+        gambarKomponent2: requestBody.gambarKomponent2
+      },
+      hasilAnalisa: resultFromExternalApi.hasilAnalisa,
+      kesimpulan: {
+        strukturMikro: resultFromExternalApi.kesimpulan.strukturMikro,
+        fiturMikroskopik: resultFromExternalApi.kesimpulan.fiturMikroskopik,
+        damageClass: resultFromExternalApi.kesimpulan.damageClass,
+        hardness: resultFromExternalApi.kesimpulan.hardness,
+        rekomendasi: resultFromExternalApi.kesimpulan.rekomendasi
+      },
+      penguji: existingProject.penguji,
+      pemeriksa: [user.name]
+    }
+
+    // 4 simpan di database jika diperlukan (kemungkinan diperlukan agar di database kita juga menyimpan data hasil Analisa AI Model)
+    await AnalyzedResult.create(analyzedResultToBeSaved);
+
+    // 3. ubah status pengujian menjadi selesai dianalisa
+    existingProjectEvaluation.isAnalyzed = true;
+
+    await existingProjectEvaluation.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Pengujian Project berhasil berhasil dianalisa",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+const getAnalyzedResult = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const analyzedResult = await AnalyzedResult.findOne({ projectEvaluationId: id }).lean();
+
+    if (!analyzedResult) {
+      return res.status(404).json({
+        message: "Analyzed Result not found",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Berhasil mendapatkan Analyzed Result",
+      data: analyzedResult,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+const updateAnalyzedResult = async (req, res) => {
+  try {
+    const user = req.existingUser;
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { id } = req.params;
+    const {
+      type, // fasa | crack | degradasi
+      mode, // AI | MANUAL
+      hasilKlasifikasiManual,
+      modelAnalyzedResultId, // hasilAnalisa[index]._id
+    } = req.body;
+
+    const analyzedResult = await AnalyzedResult.findOne({ projectEvaluationId: id });
+    if (!analyzedResult) {
+      return res.status(404).json({ message: "Analyzed Result not found" });
+    }
+
+    // 🔍 Cari index berdasarkan _id hasilAnalisa
+    const index = analyzedResult.hasilAnalisa.findIndex(
+      (item) => item._id.toString() === modelAnalyzedResultId
+    );
+
+    if (index === -1) {
+      return res.status(404).json({ message: "Data hasilAnalisa tidak ditemukan" });
+    }
+
+    // 📝 Update data berdasarkan type dan mode
+    if (type && mode) {
+      const target = analyzedResult.hasilAnalisa[index][type];
+
+      if (!target) {
+        return res.status(400).json({ message: `Tipe '${type}' tidak valid` });
+      }
+
+      // Update hanya jika mode MANUAL
+      target.mode = mode;
+      target.hasilKlasifikasiManual = hasilKlasifikasiManual;
+    }
+
+    await analyzedResult.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Hasil analisa berhasil diperbarui",
+      data: analyzedResult
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const uploadImageModel = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const {
+      type, // fasa | crack | degradasi
+    } = req.body;
+
+    const files = req.files;
+
+    // === TODO: bisa disesuaikan untuk memproses gambar imagenya sesuai kebutuhan === //
+    const imageListUrls = files.imageList.map((file) => makeUrl(file.filename));
+
+    // disini dicontohkan hanya akan memberikan response dengan data dummy Recommendation AI Result untuk ditampilkan di page selanjutnya
+    const aiRecommendationResult = imageListUrls.map((image, index) => ({
+      image: getAssetURL(image),
+      penguji: `Samwell Tarley ${index + 1}`,
+      tanggalUpdate: "2025-01-15T00:00:00.000Z",
+      mode: "AI",
+      hasilKlasifikasiAI: "Austenite",
+      modelAI: "Model AI FASA 12",
+      confidence: 90.1,
+      hasilKlasifikasiManual: null,
+      isAnotated: true,
+    }))
+
+    res.status(200).json({
+      status: true,
+      message: "Image uploaded successfully",
+      data: {
+        type,
+        aiRecommendationResult,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+
 module.exports = {
   getImageProfile,
   registerUser,
@@ -1266,6 +1650,12 @@ module.exports = {
   deleteUser,
   getAllProject,
   getProjectByIdProject,
+  getAiModelList,
+  analyzeProjectEvaluation,
+  getAnalyzedResult,
+  updateAnalyzedResult,
+  getAiClasificationList,
+  uploadImageModel,
   addProject,
   verifyUser,
   editProject,
