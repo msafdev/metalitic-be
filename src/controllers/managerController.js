@@ -188,8 +188,8 @@ const getUsers = async (req, res) => {
         role: user.isSuperAdmin
           ? "superadmin"
           : user.isAdmin
-          ? "supervisor"
-          : "user",
+            ? "supervisor"
+            : "user",
       })),
     });
   } catch (err) {
@@ -228,8 +228,8 @@ const getUserById = async (req, res) => {
         role: users.isSuperAdmin
           ? "superadmin"
           : users.isAdmin
-          ? "supervisor"
-          : "user",
+            ? "supervisor"
+            : "user",
       },
     });
   } catch (err) {
@@ -1665,6 +1665,190 @@ const uploadImageModel = async (req, res) => {
   }
 }
 
+const createReportProjectEvaluation = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    //  ====== TODO: Untuk handle Create Report Hasil Analisa  ====== 
+    const requestBody = req.body
+
+    // ==== Contoh isi requestBody dari FE ====
+    console.log(requestBody);
+
+
+    // ==== dengan data dari requestBody nanti bisa disesuaikan sesuai kebutuhan =====
+
+    res.status(200).json({
+      status: true,
+      message: "Create Report Successfully",
+      data: {
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+const startTraining = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    //  ====== TODO: Untuk handle training AI ======
+    const requestBody = req.body
+
+    // ==== Contoh isi requestBody dari FE =====
+    // {
+    //   type: "fasa" | "crack" | "degradasi", 
+    //   aiRecommendationResult: [
+    //     {
+    //       image: "http://localhost:1945/uploads/20250707_175445_gv2aj.png",
+    //       penguji: "Samwell Tarley 5",
+    //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
+    //       mode: "AI",
+    //       hasilKlasifikasiAI: "Austenite",
+    //       modelAI: "Model AI FASA 12",
+    //       confidence: 90.1,
+    //       hasilKlasifikasiManual: null,
+    //       isAnotated: true,
+    //       useRecommendation: true
+    //     },
+    //     {
+    //       image: "http://localhost:1945/uploads/20250707_175445_v04a0a.png",
+    //       penguji: "Samwell Tarley 6",
+    //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
+    //       mode: "AI",
+    //       hasilKlasifikasiAI: "Austenite",
+    //       modelAI: "Model AI FASA 12",
+    //       confidence: 90.1,
+    //       hasilKlasifikasiManual: null,
+    //       isAnotated: true,
+    //       useRecommendation: true
+    //     }
+    //   ],
+    //     useOlderDatasetImage: true,
+    //     aiFileModelName: "model_fasa_12"
+    // }
+
+    res.status(200).json({
+      status: true,
+      message: "Data Traning Successfully",
+      data: {
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+const saveModel = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    //  ====== TODO: Untuk handle save model AI ====== 
+    const requestBody = req.body
+    const files = req.files;
+
+
+    // ==== Contoh isi requestBody dari FE (untuk saat ini request dari FE sama dengan di controller startTraining karena dri kita tidak tahu apa yg diperlukan) =====
+
+    // {
+    //   type: "fasa" | "crack" | "degradasi", 
+    //   aiRecommendationResult: [
+    //     {
+    //       image: "http://localhost:1945/uploads/20250707_175445_gv2aj.png",
+    //       penguji: "Samwell Tarley 5",
+    //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
+    //       mode: "AI",
+    //       hasilKlasifikasiAI: "Austenite",
+    //       modelAI: "Model AI FASA 12",
+    //       confidence: 90.1,
+    //       hasilKlasifikasiManual: null,
+    //       isAnotated: true,
+    //       useRecommendation: true
+    //     },
+    //     {
+    //       image: "http://localhost:1945/uploads/20250707_175445_v04a0a.png",
+    //       penguji: "Samwell Tarley 6",
+    //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
+    //       mode: "AI",
+    //       hasilKlasifikasiAI: "Austenite",
+    //       modelAI: "Model AI FASA 12",
+    //       confidence: 90.1,
+    //       hasilKlasifikasiManual: null,
+    //       isAnotated: true,
+    //       useRecommendation: true
+    //     }
+    //   ],
+    //     useOlderDatasetImage: true,
+    //     aiFileModelName: "model_fasa_12"
+    // }
+
+    // ==== dengan data dari requestBody nanti bisa disesuaikan sesuai kebutuhan =====
+
+    res.status(200).json({
+      status: true,
+      message: "Save Model Successfully",
+      data: {
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+const saveCompletedModel = async (req, res) => {
+  try {
+    const user = req.existingUser;
+
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    //  ====== TODO: Untuk handle save model AI yang sudah jadi ====== 
+    const requestBody = req.body
+
+    // ==== Contoh isi requestBody dari FE ====
+    // {
+    //   aiModelName: "Model AI Fasa 12",
+    // }
+
+    const files = req.files
+
+    // ==== Contoh isi requestBody dari FE ====
+    // {
+    //   aiModelFile: file ai //
+    // }
+
+
+    // ==== dengan data dari requestBody nanti bisa disesuaikan sesuai kebutuhan =====
+
+    res.status(200).json({
+      status: true,
+      message: "Save Model Successfully",
+      data: {
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 
 module.exports = {
   getImageProfile,
@@ -1702,4 +1886,8 @@ module.exports = {
   deleteProjectEvaluationImageListMicroStructure,
   updateProjectEvaluationStatusToPending,
   updateProjectEvaluationStatusToProcessing,
+  startTraining,
+  saveModel,
+  createReportProjectEvaluation,
+  saveCompletedModel
 };

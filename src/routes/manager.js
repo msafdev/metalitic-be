@@ -45,6 +45,10 @@ const {
   updateAnalyzedResult,
   getAiClasificationList,
   uploadImageModel,
+  startTraining,
+  saveModel,
+  createReportProjectEvaluation,
+  saveCompletedModel,
 } = require("../controllers/managerController");
 
 const editProjectEvaluationUpload = upload.fields([
@@ -55,6 +59,10 @@ const editProjectEvaluationUpload = upload.fields([
 
 const uploadImageAiModel = upload.fields([
   { name: "imageList" }, // atau berapa maksimal file yang diperbolehkan
+]);
+
+const uploadSaveCompletedAiModel = upload.fields([
+  { name: "aiModelFile" }, // atau berapa maksimal file yang diperbolehkan
 ]);
 
 const registerUserUpload = upload.fields([{ name: "avatarUser", maxCount: 1 }]);
@@ -84,13 +92,16 @@ router.post("/projects/add/users", authenticate, addUserProject);
 router.post("/projects/get/users", authenticate, getUserProject);
 
 // ────── AI Settings Routes / Pengaturan AI Routes ──────
-router.post("/ai-configuration/upload-image", authenticate, uploadImageAiModel, uploadImageModel);
-router.post("/projects/evaluation/ai-model-list", authenticate, getAiModelList);
-router.get("/projects/evaluation/ai-model-list", authenticate, getAiModelList);
-router.get("/projects/evaluation/ai-clasification-list", authenticate, getAiClasificationList);
-router.get("/projects/evaluation/:id/analyzed-result", authenticate, getAnalyzedResult);
-router.put("/projects/evaluation/:id/analyzed-result", authenticate, updateAnalyzedResult);
-router.post("/projects/evaluation/:id/analyze-with-ai", authenticate, analyzeProjectEvaluation);
+router.post("/ai-configuration/upload-image", authenticate, uploadImageAiModel, uploadImageModel); // untuk upload gambar sebelum mulai training
+router.post("/ai-configuration/start-training", authenticate, startTraining); // untuk mulai training
+router.post("/ai-configuration/save-model", authenticate, saveModel); // untuk simpan/upload model hasil dari training
+router.post("/ai-configuration/save-completed-model", authenticate, uploadSaveCompletedAiModel, saveCompletedModel); // untuk simpan/upload model yg sudah jadi
+router.get("/projects/evaluation/ai-model-list", authenticate, getAiModelList); // untuk daftar model AI
+router.get("/projects/evaluation/ai-clasification-list", authenticate, getAiClasificationList); // untuk daftar kelas AI
+router.get("/projects/evaluation/:id/analyzed-result", authenticate, getAnalyzedResult); // untuk lihat hasil analisa
+router.put("/projects/evaluation/:id/analyzed-result", authenticate, updateAnalyzedResult); // untuk update hasil analisa, seperti update klasifikasi dari AI ke Manual
+router.post("/projects/evaluation/:id/analyze-with-ai", authenticate, analyzeProjectEvaluation); // untuk analisa pengujian
+router.post("/projects/evaluation/:id/create-report", authenticate, createReportProjectEvaluation); // untuk buat laporan hasil analisa
 
 // ────── Project Evaluation / Pengujian Project Routes ──────
 router.post("/projects/evaluation", authenticate, addProjectEvaluation);
