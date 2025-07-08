@@ -27,6 +27,7 @@ const ProjectEvaluationSchema = new mongoose.Schema({
   aiModelCrack: { type: String },
   aiModelDegradasi: { type: String },
   isAnalyzed: { type: Boolean, default: false },
+  lastActive: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 ProjectEvaluationSchema.index({ id: 1 });

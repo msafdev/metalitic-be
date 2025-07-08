@@ -1034,6 +1034,7 @@ const updateProjectEvaluationStatusToProcessing = async (req, res) => {
     }
 
     existingProjectEvaluation.status = "PROCESSING";
+    existingProjectEvaluation.lastActive = Date.now();
 
     await existingProjectEvaluation.save();
 
