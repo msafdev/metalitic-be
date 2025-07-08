@@ -318,8 +318,6 @@ const editUser = async (req, res) => {
 
     const files = req.files;
 
-    const makeUrl = (filename) => `/uploads/${filename}`;
-
     const avatarUserUrl =
       files?.avatarUser?.[0] && makeUrl(files.avatarUser[0].filename);
 
