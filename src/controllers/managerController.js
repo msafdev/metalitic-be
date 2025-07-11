@@ -3,10 +3,10 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
-
 const User = require("../models/User");
 const Session = require("../models/Session");
 const Project = require("../models/Project");
+const Sample = require("../models/Sample");
 const ServiceRequester = require("../models/ServiceRequester");
 const ProjectEvaluation = require("../models/ProjectEvaluation");
 const { getAssetURL } = require("../utils/assets");
@@ -1360,30 +1360,30 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: "Austenite",
+        hasilKlasifikasiAI: "Austenite", // Digunakan saat mode === "AI"
         modelAI: "Model AI FASA 12",
         confidence: 90.3,
-        hasilKlasifikasiManual: null // string | null
+        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       },
       crack: {
         image: item,
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
-        mode: "MANUAL", // AI | MANUAL
-        hasilKlasifikasiAI: "Terdeteksi",
+        mode: "AI", // AI | MANUAL
+        hasilKlasifikasiAI: "Terdeteksi",  // Digunakan saat mode === "AI"
         modelAI: "Model AI Crack 12",
         confidence: 90.3,
-        hasilKlasifikasiManual: "Tidak Terdeteksi" // string | null
+        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       },
       degradasi: {
         image: item,
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: "ERA A",
+        hasilKlasifikasiAI: "ERA A", // Digunakan saat mode === "AI"
         modelAI: "Model AI Degradasi 12",
         confidence: 90.3,
-        hasilKlasifikasiManual: null // string | null
+        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       }
     })),
     kesimpulan: {
@@ -1479,6 +1479,9 @@ const analyzeProjectEvaluation = async (req, res) => {
 
     // 2. hit API External dengan membawa data Pengujian Project,
     const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal);
+
+    // simpan image dan hasil analisa ke database collection Sample, digunakan untuk menampilkan REKOMENDASI hasil analisa saat di menu Pengaturan Model AI
+    const savedSample = await Sample.insertMany(resultFromExternalApi.hasilAnalisa);
 
     // 3. masukkan hasil dari "resultFromExternalApi" ke variabel "analyzedResultFromExternalAPI" 
     // dibawah ini disimulasikan dengan data dummy, anda seharusnya mengambil data tersebut dari API External
@@ -1620,39 +1623,48 @@ const updateAnalyzedResult = async (req, res) => {
   }
 };
 
-const uploadImageModel = async (req, res) => {
+const getAiRecommendationFromSample = async (req, res) => {
   try {
     const user = req.existingUser;
-
     if (isUnauthorized(user)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const {
-      type, // fasa | crack | degradasi
-    } = req.body;
 
-    const files = req.files;
+    const { type, imageList } = req.body;
 
-    // === TODO: bisa disesuaikan untuk memproses gambar imagenya sesuai kebutuhan === //
-    const imageListUrls = files.imageList.map((file) => makeUrl(file.filename));
+    if (!["fasa", "crack", "degradasi"].includes(type)) {
+      return res.status(400).json({ message: "Invalid type provided." });
+    }
 
-    // disini dicontohkan hanya akan memberikan response dengan data dummy Recommendation AI Result untuk ditampilkan di page selanjutnya
-    const aiRecommendationResult = imageListUrls.map((image, index) => ({
-      image: getAssetURL(image),
-      penguji: `Samwell Tarley ${index + 1}`,
-      tanggalUpdate: "2025-01-15T00:00:00.000Z",
-      mode: "AI",
-      hasilKlasifikasiAI: "Austenite",
-      modelAI: "Model AI FASA 12",
-      confidence: 90.1,
-      hasilKlasifikasiManual: null,
-      isAnotated: true,
-    }))
+    // Ambil semua sample
+    const samples = await Sample.find({});
+
+    // Cocokkan sample berdasarkan imageList
+    const matchedSamples = samples.filter((sample) => {
+      return imageList.some((imagePath) => sample.image.endsWith(imagePath));
+    });
+
+    // Ambil hasil AI recommendation berdasarkan type yang dipilih
+    const aiRecommendationResult = matchedSamples.map((sample, index) => {
+      const data = sample[type];
+
+      return {
+        image: sample.image,
+        penguji: data?.penguji ?? `Penguji ${index + 1}`,
+        tanggalUpdate: data?.tanggalUpdate ?? null,
+        mode: data?.mode ?? null,
+        hasilKlasifikasiAI: data?.hasilKlasifikasiAI ?? null,
+        modelAI: data?.modelAI ?? null,
+        confidence: data?.confidence ?? null,
+        hasilKlasifikasiManual: data?.hasilKlasifikasiManual ?? null,
+        isAnotated: true,
+      };
+    });
 
     res.status(200).json({
       status: true,
-      message: "Image uploaded successfully",
+      message: "Recommendation data fetched successfully",
       data: {
         type,
         aiRecommendationResult,
@@ -1662,7 +1674,7 @@ const uploadImageModel = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const createReportProjectEvaluation = async (req, res) => {
   try {
@@ -1704,6 +1716,8 @@ const startTraining = async (req, res) => {
     //  ====== TODO: Untuk handle training AI ======
     const requestBody = req.body
 
+    console.log(requestBody);
+
     // ==== Contoh isi requestBody dari FE =====
     // {
     //   type: "fasa" | "crack" | "degradasi", 
@@ -1713,10 +1727,10 @@ const startTraining = async (req, res) => {
     //       penguji: "Samwell Tarley 5",
     //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
     //       mode: "AI",
-    //       hasilKlasifikasiAI: "Austenite",
+    //       hasilKlasifikasiAI: "Austenite", // Notes: Digunakan saat mode === "AI"
     //       modelAI: "Model AI FASA 12",
     //       confidence: 90.1,
-    //       hasilKlasifikasiManual: null,
+    //       hasilKlasifikasiManual: null, // Notes: Digunakan saat mode === "MANUAL"
     //       isAnotated: true,
     //       useRecommendation: true
     //     },
@@ -1725,8 +1739,8 @@ const startTraining = async (req, res) => {
     //       penguji: "Samwell Tarley 6",
     //       tanggalUpdate: "2025-01-15T00:00:00.000Z",
     //       mode: "AI",
-    //       hasilKlasifikasiAI: "Austenite",
-    //       modelAI: "Model AI FASA 12",
+    //       hasilKlasifikasiAI: "Austenite", // Notes: Digunakan saat mode === "AI"
+    //       modelAI: "Model AI FASA 12", // Notes: Digunakan saat mode === "MANUAL"
     //       confidence: 90.1,
     //       hasilKlasifikasiManual: null,
     //       isAnotated: true,
@@ -1734,7 +1748,6 @@ const startTraining = async (req, res) => {
     //     }
     //   ],
     //     useOlderDatasetImage: true,
-    //     aiFileModelName: "model_fasa_12"
     // }
 
     res.status(200).json({
@@ -1848,6 +1861,67 @@ const saveCompletedModel = async (req, res) => {
   }
 }
 
+const getUploadedSample = async (req, res) => {
+  const uploadFolder = process.env.UPLOAD_FOLDER || 'uploads';
+  const baseUrl = `${process.env.APP_URL}/${uploadFolder}`;
+  const requestedPath = req.query.path || '';
+  const folderPath = path.resolve(process.cwd(), uploadFolder, requestedPath);
+
+  try {
+    // Step 1: Ambil semua path image dari Sample
+    const samples = await Sample.find({}, {
+      "fasa.image": 1,
+      "crack.image": 1,
+      "degradasi.image": 1
+    }).lean();
+
+    // Step 2: Ambil pathname dari setiap image URL
+    const imagePathsSet = new Set();
+
+    samples.forEach(sample => {
+      [sample.fasa?.image, sample.crack?.image, sample.degradasi?.image].forEach(url => {
+        if (url) {
+          try {
+            const parsed = new URL(url);
+            // Ambil hanya pathname yang mirip `/uploads/path/to/file.jpg`
+            const pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+            imagePathsSet.add(pathname); // simpan dalam Set
+          } catch (err) {
+            // jika bukan URL valid, skip
+          }
+        }
+      });
+    });
+
+    // Step 3: Baca folder lalu filter hanya file yang ada di Sample DB
+    const items = fs.readdirSync(folderPath).map((entry) => {
+      const entryFullPath = path.join(folderPath, entry);
+      const stats = fs.statSync(entryFullPath);
+      const relativePath = path.join(requestedPath, entry).replace(/\\/g, '/');
+      const fullPathForComparison = `${uploadFolder}/${relativePath}`.replace(/\\/g, '/');
+
+      return {
+        name: entry,
+        path: relativePath,
+        type: stats.isDirectory() ? 'folder' : 'file',
+        url: !stats.isDirectory() ? `${baseUrl}/${relativePath}` : undefined,
+        size: stats.isDirectory() ? undefined : stats.size,
+        extension: path.extname(entry),
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime,
+        isUsedInSample: imagePathsSet.has(fullPathForComparison)
+      };
+    });
+
+    // Step 4: Filter hanya file yang digunakan di Sample
+    const filteredItems = items.filter(item => item.type === 'folder' || item.isUsedInSample);
+
+    res.json(filteredItems);
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal membaca folder', detail: err.message });
+  }
+}
+
 
 module.exports = {
   getImageProfile,
@@ -1866,7 +1940,7 @@ module.exports = {
   getAnalyzedResult,
   updateAnalyzedResult,
   getAiClasificationList,
-  uploadImageModel,
+  getAiRecommendationFromSample,
   addProject,
   verifyUser,
   editProject,
@@ -1888,5 +1962,6 @@ module.exports = {
   startTraining,
   saveModel,
   createReportProjectEvaluation,
-  saveCompletedModel
+  saveCompletedModel,
+  getUploadedSample
 };

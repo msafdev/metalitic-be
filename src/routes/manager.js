@@ -49,6 +49,8 @@ const {
   saveModel,
   createReportProjectEvaluation,
   saveCompletedModel,
+  getAiRecommendationFromSample,
+  getUploadedSample,
 } = require("../controllers/managerController");
 
 const editProjectEvaluationUpload = upload.fields([
@@ -92,7 +94,7 @@ router.post("/projects/add/users", authenticate, addUserProject);
 router.post("/projects/get/users", authenticate, getUserProject);
 
 // ────── AI Settings Routes / Pengaturan AI Routes ──────
-router.post("/ai-configuration/upload-image", authenticate, uploadImageAiModel, uploadImageModel); // untuk upload gambar sebelum mulai training
+router.post("/ai-configuration/get-recommendation-from-sample", authenticate, getAiRecommendationFromSample); // untuk upload gambar sebelum mulai training
 router.post("/ai-configuration/start-training", authenticate, startTraining); // untuk mulai training
 router.post("/ai-configuration/save-model", authenticate, saveModel); // untuk simpan/upload model hasil dari training
 router.post("/ai-configuration/save-completed-model", authenticate, uploadSaveCompletedAiModel, saveCompletedModel); // untuk simpan/upload model yg sudah jadi
@@ -127,5 +129,9 @@ router.delete("/projects/evaluation/:id/image-list-micro-structure", authenticat
 router.get("/service-requester", authenticate, getServiceRequester);
 router.post("/service-requester", authenticate, addServiceRequester);
 router.delete("/service-requester/:id", authenticate, deleteServiceRequester);
+
+// ────── Get Uploaded Sample / Get Gambar Pengujian yg sudah tersimpan di storage ─────
+router.get('/uploaded-sample', authenticate, getUploadedSample);
+
 
 module.exports = router;
