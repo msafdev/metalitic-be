@@ -1,3 +1,4 @@
+require('dotenv').config
 const sanitize = require("mongo-sanitize");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -11,10 +12,19 @@ const ServiceRequester = require("../models/ServiceRequester");
 const ProjectEvaluation = require("../models/ProjectEvaluation");
 const { getAssetURL } = require("../utils/assets");
 const AnalyzedResult = require("../models/AnalyzedResult");
+const Ai_Model=require("../models/Ai_Model");
+const axios=require("axios");
+const FormData=require('form-data');
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
+const Ai_model=new Ai_Model({
+  namaModel:'degradasi d3',
+  namaPembuat:'Fairuz',
+  jenisModel:'degradasi'
+});
+// Ai_model.save();
 
 const makeUrl = (filename) => {
   const folder = process.env.UPLOAD_FOLDER || "uploads";
@@ -28,6 +38,7 @@ const isUnauthorized = (user) => {
 // Controller: Register
 const registerUser = async (req, res) => {
   try {
+    // const tes=AiModel()
     const user = req.existingUser;
 
     if (isUnauthorized(user)) {
@@ -1147,18 +1158,17 @@ const getProjectEvaluationById = async (req, res) => {
 
 const getAiModelList = async (req, res) => {
   try {
+    const models=await Ai_Model.find()
+    // const namaModels=models.map(m=>m.namaModel)
+    console.log(models)
     // ===== TODO: Untuk data dropdown di FE page Pengujian =======
     // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
+    //clear dev 21072025 1322
+
     const aiModels = {
-      fasa: [
-        "Fasa 1", "Fasa 2", "Fasa 3", "Fasa 4"
-      ],
-      crack: [
-        "Crack 1", "Crack 2", "Crack 3", "Crack 4"
-      ],
-      degradasi: [
-        "Degradasi 1", "Degradasi 2", "Degradasi 3", "Degradasi 4"
-      ]
+      fasa: models.filter(m => m.jenisModel === 'fasa').map(m => m.namaModel),
+      crack: models.filter(m => m.jenisModel === 'crack').map(m => m.namaModel),
+      degradasi: models.filter(m => m.jenisModel === 'degradasi').map(m => m.namaModel)
     }
 
     res.status(200).json({
@@ -1178,6 +1188,7 @@ const getAiClasificationList = async (req, res) => {
   try {
     // ===== TODO: Untuk data dropdown di FE page Update Analyzed Result =======
     // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
+    // sementara static
     const aiModels = {
       fasa: [
         "Austenite", "Martensite", "Ferrite", "Bainite"
@@ -1349,9 +1360,78 @@ const deleteProjectEvaluationImageListMicroStructure = async (req, res) => {
   }
 };
 
+const hitMetalyticserve = async (filename, mode) => {
+  let urlMode;
+
+  if (mode === "fasa") {
+    urlMode = "http://localhost:5000/predict?task_type=fasa";
+  } else if (mode === "crack") {
+    urlMode = "http://localhost:5000/predict?task_type=crack";
+  } else if (mode === "degradation") {
+    urlMode = "http://localhost:5000/predict?task_type=degradation";
+  } else {
+    throw new Error(`Invalid mode: ${mode}`);
+  }
+
+  const imageName = path.basename(filename);
+  const localFilePath = path.resolve(
+    process.env.BASEDIR_STATIC,
+    process.env.UPLOAD_FOLDER,
+    imageName
+  );
+  console.log(`req local: ${localFilePath}`);
+
+  const data = new FormData();
+  data.append("image", fs.createReadStream(localFilePath));
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: urlMode,
+    headers: data.getHeaders(), // Correct way to set multipart headers
+    data: data,
+  };
+
+  try {
+    let response = await axios.request(config);
+    let predicted;
+    if (mode === "fasa")                {predicted = response.data[`${mode}_results`]?.predicted_class;}
+    else if (mode === "crack")          {predicted = response.data[`${mode}_results`]?.details.objects_detected;}
+    else if (mode === "degradation")    {predicted = response.data[`${mode}_results`]?.predicted_class;}
+
+    console.log(`Predicted class ${mode}: ${predicted}`);
+    return predicted;
+  } catch (error) {
+    console.error("Error hitting AI API:", error.message);
+    return null;
+  }
+}
+
 const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
   // ====== TODO: HIT AI EXTERNAL API ======
   // disini seharusnya anda hit endpoint AI external API, dibawah disimulasi dengan me return contoh data response dari AI external API
+  
+  // console.log(`req: ${JSON.stringify(req.listGambarStrukturMikro,0,2)}`);
+  // const filenames = path.basename(req.listGambarStrukturMikro);
+  // console.log('tes',filenames);
+
+  const responsesFasa=[];
+  const responsesCrack=[];
+  const responsesDegradasi=[];
+  for (const filename of req.listGambarStrukturMikro){
+    responsesFasa.push( hitMetalyticserve(filename,'fasa'));
+    responsesCrack.push( hitMetalyticserve(filename,'crack'));
+    responsesDegradasi.push( hitMetalyticserve(filename,'degradation'));
+
+  }
+  const fasaResults = await Promise.all(responsesFasa);
+  const crackResults = await Promise.all(responsesCrack);
+  const degradasiResults = await Promise.all(responsesDegradasi);
+
+  console.log('response fasa:',responsesFasa);
+  console.log('response crack:',responsesCrack);
+  console.log('response degradasi:',responsesDegradasi);
+
   return {
     hasilAnalisa: req.listGambarStrukturMikro.map((item) => ({
       image: item,
@@ -1446,9 +1526,7 @@ const analyzeProjectEvaluation = async (req, res) => {
 
     // ======= TODO: Untuk Proses Analisa Pengujian Project ============
     // proses hit API External untuk Analisa AI Model nya bisa dilakukan dibawah ini 
-    const existingProject = await Project.findOne({
-      idProject: requestBody.projectId,
-    });
+    const existingProject = await Project.findOne({idProject: requestBody.projectId,});
 
     // 1. ambil data dari request body untuk di hit ke API External
     const requestBodyForApiExternal = {
@@ -1479,6 +1557,7 @@ const analyzeProjectEvaluation = async (req, res) => {
 
     // 2. hit API External dengan membawa data Pengujian Project,
     const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal);
+
 
     // simpan image dan hasil analisa ke database collection Sample, digunakan untuk menampilkan REKOMENDASI hasil analisa saat di menu Pengaturan Model AI
     const savedSample = await Sample.insertMany(resultFromExternalApi.hasilAnalisa);
@@ -1523,7 +1602,7 @@ const analyzeProjectEvaluation = async (req, res) => {
     await AnalyzedResult.create(analyzedResultToBeSaved);
 
     // 3. ubah status pengujian menjadi selesai dianalisa
-    existingProjectEvaluation.isAnalyzed = true;
+    // existingProjectEvaluation.isAnalyzed = true;
 
     await existingProjectEvaluation.save();
 

@@ -38,10 +38,8 @@ app.use(
 // ────── Static File Serving ──────
 // Enable if using file uploads (e.g., profile images)
 const uploadFolder_=process.env.UPLOAD_FOLDER
-const staticDir=path.resolve('E:/FETA_Project/Metalytic/Salman/Backend/metalitic-be/shared_volume/static_uploads')
-// app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-// app.use("/uploads", express.static(staticDir));
-app.use(`/${uploadFolder_}`, express.static(path.join(__dirname,`../${uploadFolder_}`)));
+staticDir=path.join(__dirname,`../${uploadFolder_}`)
+app.use(`/${uploadFolder_}`, express.static(staticDir));
 console.log("Serving static from", staticDir);
 
 
