@@ -1428,19 +1428,26 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
   const crackResults = await Promise.all(responsesCrack);
   const degradasiResults = await Promise.all(responsesDegradasi);
 
-  console.log('response fasa:',responsesFasa);
-  console.log('response crack:',responsesCrack);
-  console.log('response degradasi:',responsesDegradasi);
+  // console.log('response fasa:',responsesFasa);
+  // console.log('response crack:',responsesCrack);
+  // console.log('response degradasi:',responsesDegradasi);
+
+  req.listGambarStrukturMikro.forEach((filename, index) => {
+    console.log(`Image: ${filename}`);
+    console.log(`  Fasa: ${fasaResults[index]}`);
+    console.log(`  Crack: ${crackResults[index]}`);
+    console.log(`  Degradasi: ${degradasiResults[index]}`);
+  });
 
   return {
-    hasilAnalisa: req.listGambarStrukturMikro.map((item) => ({
+    hasilAnalisa: req.listGambarStrukturMikro.map((item,index) => ({
       image: item,
       fasa: {
         image: item,
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: "Austenite", // Digunakan saat mode === "AI"
+        hasilKlasifikasiAI: fasaResults[index], // Digunakan saat mode === "AI"
         modelAI: "Model AI FASA 12",
         confidence: 90.3,
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
@@ -1450,7 +1457,7 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: "Terdeteksi",  // Digunakan saat mode === "AI"
+        hasilKlasifikasiAI: crackResults[index],  // Digunakan saat mode === "AI"
         modelAI: "Model AI Crack 12",
         confidence: 90.3,
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
@@ -1460,7 +1467,7 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
         penguji: "Samwell Tarley",
         tanggalUpdate: "2025-01-15",
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: "ERA A", // Digunakan saat mode === "AI"
+        hasilKlasifikasiAI: degradasiResults[index], // Digunakan saat mode === "AI"
         modelAI: "Model AI Degradasi 12",
         confidence: 90.3,
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
@@ -1602,7 +1609,7 @@ const analyzeProjectEvaluation = async (req, res) => {
     await AnalyzedResult.create(analyzedResultToBeSaved);
 
     // 3. ubah status pengujian menjadi selesai dianalisa
-    // existingProjectEvaluation.isAnalyzed = true;
+    existingProjectEvaluation.isAnalyzed = true;
 
     await existingProjectEvaluation.save();
 
