@@ -37,7 +37,11 @@ app.use(
 
 // ────── Static File Serving ──────
 // Enable if using file uploads (e.g., profile images)
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+const uploadFolder_=process.env.UPLOAD_FOLDER
+staticDir=path.join(__dirname,`../${uploadFolder_}`)
+app.use(`/${uploadFolder_}`, express.static(staticDir));
+console.log("Serving static from", staticDir);
+
 
 // ────── Database Connection ──────
 mongoose

@@ -9,6 +9,9 @@ const uploadDirFromEnv = process.env.UPLOAD_FOLDER || "uploads";
 
 // ────── Hitung path absolut dari root project ──────
 const uploadPath = path.resolve(process.cwd(), uploadDirFromEnv);
+// const uploadPath=path.resolve(uploadDirFromEnv)
+
+console.log('dir from multer: ',uploadPath)
 
 // ────── Storage Configuration ──────
 const storage = multer.diskStorage({
