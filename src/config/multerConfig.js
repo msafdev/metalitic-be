@@ -11,7 +11,7 @@ const uploadDirFromEnv = process.env.UPLOAD_FOLDER || "uploads";
 const uploadPath = path.resolve(process.cwd(), uploadDirFromEnv);
 // const uploadPath=path.resolve(uploadDirFromEnv)
 
-console.log('dir from multer: ',uploadPath)
+console.log('dir from multer: ', uploadPath)
 
 // ────── Storage Configuration ──────
 const storage = multer.diskStorage({
@@ -36,8 +36,8 @@ const storage = multer.diskStorage({
 
 // ────── File Type Filter ──────
 const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png"];
-  const allowedExtensions = [".jpg", ".jpeg", ".png"];
+  const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/tiff"];
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff"];
 
   const isMimeValid = allowedMimeTypes.includes(file.mimetype);
   const isExtValid = allowedExtensions.includes(
@@ -46,7 +46,7 @@ const fileFilter = (req, file, cb) => {
 
   if (!isMimeValid || !isExtValid) {
     return cb(
-      new Error("Invalid file type. Only .jpg, .jpeg, .png are allowed!"),
+      new Error("Invalid file type. Only .jpg, .jpeg, .png, .tif, .tiff are allowed!"),
       false
     );
   }
@@ -63,4 +63,5 @@ const upload = multer({
   },
 });
 
+module.exports = { uploadPath }
 module.exports = upload;

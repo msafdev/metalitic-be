@@ -14,6 +14,7 @@ const globalRoutes = require("./routes/global");
 // const deviceFERoutes = require("./routes/device");
 
 const errorHandler = require("./middlewares/errorHandler");
+const { previewImages } = require("./controllers/globalController");
 
 const app = express();
 
@@ -37,11 +38,13 @@ app.use(
 
 // ────── Static File Serving ──────
 // Enable if using file uploads (e.g., profile images)
-const uploadFolder_=process.env.UPLOAD_FOLDER
-staticDir=path.join(__dirname,`../${uploadFolder_}`)
+const uploadFolder_ = process.env.UPLOAD_FOLDER
+staticDir = path.join(__dirname, `../${uploadFolder_}`)
 app.use(`/${uploadFolder_}`, express.static(staticDir));
 console.log("Serving static from", staticDir);
 
+// const uploadDirFromEnv = process.env.UPLOAD_FOLDER || "uploads";
+// app.use(`/${uploadDirFromEnv}`, express.static(path.join(__dirname, `../${uploadDirFromEnv}`)));
 
 // ────── Database Connection ──────
 mongoose
@@ -57,6 +60,9 @@ app.use("/api/v1/superadmin", adminRoutes);
 app.use("/api/v1/manager", managerRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1", globalRoutes)
+app.get("/preview/:filename", previewImages);
+
+
 // app.use("/api/v1/local", localRoutes);
 // app.use("/api/v1/device", deviceFERoutes);
 

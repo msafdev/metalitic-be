@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
+const sharp = require("sharp");
 
 const User = require("../models/User");
 const Session = require("../models/Session");
@@ -25,8 +26,8 @@ const checkAuth = (req, res) => {
   const role = user.isSuperAdmin
     ? "superadmin"
     : user.isAdmin
-    ? "supervisor"
-    : "user";
+      ? "supervisor"
+      : "user";
   res.status(200).json({ role, message: "Valid token" });
 };
 
@@ -52,8 +53,8 @@ const getProfile = async (req, res) => {
           role: foundUser.isSuperAdmin
             ? "superadmin"
             : foundUser.isAdmin
-            ? "supervisor"
-            : "user",
+              ? "supervisor"
+              : "user",
         },
       });
     }
@@ -64,7 +65,38 @@ const getProfile = async (req, res) => {
   }
 };
 
+const previewImages = async (req, res) => {
+  const { filename } = req.params;
+
+  const uploadDirFromEnv = process.env.UPLOAD_FOLDER || "uploads";
+  const uploadPath = path.resolve(process.cwd(), uploadDirFromEnv);
+
+  const filePath = path.join(uploadPath, filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send("File not found");
+  }
+
+  const ext = path.extname(filename).toLowerCase();
+
+  try {
+    if (ext === ".tif" || ext === ".tiff") {
+      // convert to png on the fly
+      const buffer = await sharp(filePath).png().toBuffer();
+      res.set("Content-Type", "image/png");
+      res.send(buffer);
+    } else {
+      // serve original file
+      res.sendFile(filePath); previewImages
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to load image");
+  }
+}
+
 module.exports = {
   checkAuth,
   getProfile,
+  previewImages
 };

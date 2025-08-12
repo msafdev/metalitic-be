@@ -12,19 +12,22 @@ const ServiceRequester = require("../models/ServiceRequester");
 const ProjectEvaluation = require("../models/ProjectEvaluation");
 const { getAssetURL } = require("../utils/assets");
 const AnalyzedResult = require("../models/AnalyzedResult");
-const Ai_Model=require("../models/Ai_Model");
-const axios=require("axios");
-const FormData=require('form-data');
+const Ai_Model = require("../models/Ai_Model");
+const axios = require("axios");
+const FormData = require('form-data');
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
-const Ai_model=new Ai_Model({
-  namaModel:'degradasi d3',
-  namaPembuat:'Fairuz',
-  jenisModel:'degradasi'
+const Ai_model = new Ai_Model({
+  namaModel: 'degradasi d3',
+  namaPembuat: 'Fairuz',
+  jenisModel: 'degradasi',
+  fileName: 'degradasi d3.zip',
+  notes: 'degradasi d3'
 });
 // Ai_model.save();
+
 
 const makeUrl = (filename) => {
   const folder = process.env.UPLOAD_FOLDER || "uploads";
@@ -1158,7 +1161,7 @@ const getProjectEvaluationById = async (req, res) => {
 
 const getAiModelList = async (req, res) => {
   try {
-    const models=await Ai_Model.find()
+    const models = await Ai_Model.find()
     // const namaModels=models.map(m=>m.namaModel)
     console.log(models)
     // ===== TODO: Untuk data dropdown di FE page Pengujian =======
@@ -1363,12 +1366,14 @@ const deleteProjectEvaluationImageListMicroStructure = async (req, res) => {
 const hitMetalyticserve = async (filename, mode) => {
   let urlMode;
 
+  const aiMicroserviceBaseUrl = process.env.AI_MICROSERVICE_API;
+
   if (mode === "fasa") {
-    urlMode = "http://localhost:5000/predict?task_type=fasa";
+    urlMode = `${aiMicroserviceBaseUrl}/predict?task_type=fasa`;
   } else if (mode === "crack") {
-    urlMode = "http://localhost:5000/predict?task_type=crack";
+    urlMode = `${aiMicroserviceBaseUrl}/predict?task_type=crack`;
   } else if (mode === "degradation") {
-    urlMode = "http://localhost:5000/predict?task_type=degradation";
+    urlMode = `${aiMicroserviceBaseUrl}/predict?task_type=degradation`;
   } else {
     throw new Error(`Invalid mode: ${mode}`);
   }
@@ -1395,33 +1400,79 @@ const hitMetalyticserve = async (filename, mode) => {
   try {
     let response = await axios.request(config);
     let predicted;
-    if (mode === "fasa")                {predicted = response.data[`${mode}_results`]?.predicted_class;}
-    else if (mode === "crack")          {predicted = response.data[`${mode}_results`]?.details.objects_detected;}
-    else if (mode === "degradation")    {predicted = response.data[`${mode}_results`]?.predicted_class;}
+
+    if (mode === "fasa") { predicted = response.data[`${mode}_results`]?.predicted_class; }
+    else if (mode === "crack") { predicted = response.data[`${mode}_results`]?.details.objects_detected; }
+    else if (mode === "degradation") { predicted = response.data[`${mode}_results`]?.predicted_class; }
+
+    let confidence;
+    if (mode === "fasa") { confidence = response.data[`${mode}_results`]?.probability; }
+    else if (mode === "crack") { confidence = 100; } // anggap crack confidence nya 100%
+    else if (mode === "degradation") { confidence = response.data[`${mode}_results`]?.probability; }
+
+    let image;
+    if (mode === "fasa") { image = response.data[`${mode}_results`]?.image_base64; }
+    else if (mode === "crack") { image = response.data[`${mode}_results`]?.image_base64; }
+    else if (mode === "degradation") { image = response.data[`${mode}_results`]?.image_base64; }
 
     console.log(`Predicted class ${mode}: ${predicted}`);
-    return predicted;
+    return {
+      predicted,
+      confidence,
+      image
+    };
   } catch (error) {
     console.error("Error hitting AI API:", error.message);
     return null;
   }
 }
 
-const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
+const getMostFrequentPrediction = (results) => {
+  const countMap = {};
+
+  // Hitung jumlah kemunculan tiap predicted
+  for (const item of results) {
+    countMap[item.predicted] = (countMap[item.predicted] || 0) + 1;
+  }
+
+  // Cari predicted dengan jumlah terbanyak
+  let mostFrequent = null;
+  let maxCount = 0;
+
+  for (const [predicted, count] of Object.entries(countMap)) {
+    if (count > maxCount) {
+      mostFrequent = predicted;
+      maxCount = count;
+    }
+  }
+
+  return {
+    prediction: mostFrequent,
+    count: maxCount,
+  };
+}
+
+const getCrackConclusion = (results) => {
+  const hasCrack = results.some(item => item.predicted > 0);
+  return hasCrack ? "terdeteksi microcrack" : "tidak terdeteksi microcrack";
+}
+
+const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
   // ====== TODO: HIT AI EXTERNAL API ======
   // disini seharusnya anda hit endpoint AI external API, dibawah disimulasi dengan me return contoh data response dari AI external API
-  
+
   // console.log(`req: ${JSON.stringify(req.listGambarStrukturMikro,0,2)}`);
   // const filenames = path.basename(req.listGambarStrukturMikro);
   // console.log('tes',filenames);
 
-  const responsesFasa=[];
-  const responsesCrack=[];
-  const responsesDegradasi=[];
-  for (const filename of req.listGambarStrukturMikro){
-    responsesFasa.push( hitMetalyticserve(filename,'fasa'));
-    responsesCrack.push( hitMetalyticserve(filename,'crack'));
-    responsesDegradasi.push( hitMetalyticserve(filename,'degradation'));
+  const responsesFasa = [];
+  const responsesCrack = [];
+  const responsesDegradasi = [];
+  console.log("list gambar struktur mikro:", req.listGambarStrukturMikro);
+  for (const filename of req.listGambarStrukturMikro) {
+    responsesFasa.push(hitMetalyticserve(filename, 'fasa'));
+    responsesCrack.push(hitMetalyticserve(filename, 'crack'));
+    responsesDegradasi.push(hitMetalyticserve(filename, 'degradation'));
 
   }
   const fasaResults = await Promise.all(responsesFasa);
@@ -1434,51 +1485,53 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req) => {
 
   req.listGambarStrukturMikro.forEach((filename, index) => {
     console.log(`Image: ${filename}`);
-    console.log(`  Fasa: ${fasaResults[index]}`);
-    console.log(`  Crack: ${crackResults[index]}`);
-    console.log(`  Degradasi: ${degradasiResults[index]}`);
+    console.log(`  Fasa: ${fasaResults[index].predicted}`);
+    console.log(`  Crack: ${crackResults[index].predicted}`);
+    console.log(`  Degradasi: ${degradasiResults[index].predicted}`);
   });
 
+  const currentDate = new Date().toISOString().split("T")[0];
+
   return {
-    hasilAnalisa: req.listGambarStrukturMikro.map((item,index) => ({
+    hasilAnalisa: req.listGambarStrukturMikro.map((item, index) => ({
       image: item,
       fasa: {
-        image: item,
-        penguji: "Samwell Tarley",
-        tanggalUpdate: "2025-01-15",
+        image: `data:image/jpeg;base64,${fasaResults[index].image}`,
+        penguji: user.name,
+        tanggalUpdate: currentDate,
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: fasaResults[index], // Digunakan saat mode === "AI"
-        modelAI: "Model AI FASA 12",
-        confidence: 90.3,
+        hasilKlasifikasiAI: fasaResults[index].predicted, // Digunakan saat mode === "AI"
+        modelAI: req.aiModelFasa,
+        confidence: fasaResults[index].confidence * 100, // ubah ke persen dikali 100
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       },
       crack: {
-        image: item,
-        penguji: "Samwell Tarley",
-        tanggalUpdate: "2025-01-15",
+        image: `data:image/jpeg;base64,${crackResults[index].image}`,
+        penguji: user.name,
+        tanggalUpdate: currentDate,
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: crackResults[index],  // Digunakan saat mode === "AI"
-        modelAI: "Model AI Crack 12",
-        confidence: 90.3,
+        hasilKlasifikasiAI: crackResults[index].predicted,  // Digunakan saat mode === "AI"
+        modelAI: req.aiModelCrack,
+        confidence: crackResults[index].confidence,
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       },
       degradasi: {
-        image: item,
-        penguji: "Samwell Tarley",
-        tanggalUpdate: "2025-01-15",
+        image: `data:image/jpeg;base64,${degradasiResults[index].image}`,
+        penguji: user.name,
+        tanggalUpdate: currentDate,
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: degradasiResults[index], // Digunakan saat mode === "AI"
-        modelAI: "Model AI Degradasi 12",
-        confidence: 90.3,
+        hasilKlasifikasiAI: degradasiResults[index].predicted, // Digunakan saat mode === "AI"
+        modelAI: req.aiModelDegradasi,
+        confidence: degradasiResults[index].confidence * 100,  // ubah ke persen dikali 100
         hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
       }
     })),
     kesimpulan: {
-      strukturMikro: "Austenite",
-      fiturMikroskopik: "Terdeteksi ada nya microcrack",
-      damageClass: "Degradasi ERA 1",
-      hardness: "...",
-      rekomendasi: "REPAIRABLE (LIFE CONSUMED 80%, LIMITED SERVICE)",
+      strukturMikro: getMostFrequentPrediction(fasaResults).prediction,
+      fiturMikroskopik: getCrackConclusion(crackResults),
+      damageClass: getMostFrequentPrediction(degradasiResults).prediction,
+      hardness: "-",
+      rekomendasi: "-",
     },
   }
 }
@@ -1533,7 +1586,10 @@ const analyzeProjectEvaluation = async (req, res) => {
 
     // ======= TODO: Untuk Proses Analisa Pengujian Project ============
     // proses hit API External untuk Analisa AI Model nya bisa dilakukan dibawah ini 
-    const existingProject = await Project.findOne({idProject: requestBody.projectId,});
+    const existingProject = await Project.findOne({ idProject: requestBody.projectId, }).populate({
+      path: "penguji",
+      select: "name email",
+    });
 
     // 1. ambil data dari request body untuk di hit ke API External
     const requestBodyForApiExternal = {
@@ -1558,12 +1614,12 @@ const analyzeProjectEvaluation = async (req, res) => {
         namaProject: existingProject.namaProject,
         pemintaJasa: existingProject.pemintaJasa,
         tanggalOrderMasuk: existingProject.tanggalOrderMasuk,
-        penguji: existingProject.penguji
+        penguji: existingProject.penguji.map((penguji) => penguji.name),
       },
     }
 
     // 2. hit API External dengan membawa data Pengujian Project,
-    const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal);
+    const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal, user);
 
 
     // simpan image dan hasil analisa ke database collection Sample, digunakan untuk menampilkan REKOMENDASI hasil analisa saat di menu Pengaturan Model AI
@@ -1601,7 +1657,7 @@ const analyzeProjectEvaluation = async (req, res) => {
         hardness: resultFromExternalApi.kesimpulan.hardness,
         rekomendasi: resultFromExternalApi.kesimpulan.rekomendasi
       },
-      penguji: existingProject.penguji,
+      penguji: existingProject.penguji.map((penguji) => penguji.name),
       pemeriksa: [user.name]
     }
 
@@ -1709,7 +1765,7 @@ const updateAnalyzedResult = async (req, res) => {
   }
 };
 
-const getAiRecommendationFromSample = async (req, res) => {
+const getAiRecommendationFromSampleBackup = async (req, res) => {
   try {
     const user = req.existingUser;
     if (isUnauthorized(user)) {
@@ -1747,6 +1803,68 @@ const getAiRecommendationFromSample = async (req, res) => {
         isAnotated: true,
       };
     });
+
+    res.status(200).json({
+      status: true,
+      message: "Recommendation data fetched successfully",
+      data: {
+        type,
+        aiRecommendationResult,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getAiRecommendationFromSample = async (req, res) => {
+  try {
+    const user = req.existingUser;
+    if (isUnauthorized(user)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { type, imageList } = req.body;
+
+    if (!["fasa", "crack", "degradasi"].includes(type)) {
+      return res.status(400).json({ message: "Invalid type provided." });
+    }
+
+    // Query semua sample yang filenya ada di imageList
+    const samples = await Sample.find({
+      image: { $in: imageList.map(name => new RegExp(name + "$")) }
+    })
+      .sort({ createdAt: -1 }) // urutkan dari terbaru
+      .lean();
+
+    // Ambil hanya 1 (terbaru) untuk setiap nama file
+    const latestPerImage = {};
+    for (const sample of samples) {
+      const fileName = path.basename(sample.image);
+      if (!latestPerImage[fileName]) {
+        latestPerImage[fileName] = sample;
+      }
+    }
+
+    // Susun hasil sesuai urutan imageList dari request
+    const aiRecommendationResult = imageList
+      .map(name => latestPerImage[name])
+      .filter(Boolean) // hapus yang tidak ketemu
+      .map((sample, index) => {
+        const data = sample[type];
+        return {
+          image: sample.image,
+          penguji: data?.penguji ?? `Penguji ${index + 1}`,
+          tanggalUpdate: data?.tanggalUpdate ?? null,
+          mode: data?.mode ?? null,
+          hasilKlasifikasiAI: data?.hasilKlasifikasiAI ?? null,
+          modelAI: data?.modelAI ?? null,
+          confidence: data?.confidence ?? null,
+          hasilKlasifikasiManual: data?.hasilKlasifikasiManual ?? null,
+          isAnotated: true,
+        };
+      });
 
     res.status(200).json({
       status: true,
@@ -1947,6 +2065,69 @@ const saveCompletedModel = async (req, res) => {
   }
 }
 
+// const getUploadedSample = async (req, res) => {
+//   const uploadFolder = process.env.UPLOAD_FOLDER || 'uploads';
+//   const baseUrl = `${process.env.APP_URL}/${uploadFolder}`;
+//   const requestedPath = req.query.path || '';
+//   const folderPath = path.resolve(process.cwd(), uploadFolder, requestedPath);
+
+//   console.log({ folderPath });
+
+//   try {
+//     // Step 1: Ambil semua path image dari Sample
+//     const samples = await Sample.find({}, {
+//       "fasa.image": 1,
+//       "crack.image": 1,
+//       "degradasi.image": 1
+//     }).lean();
+
+//     // Step 2: Ambil pathname dari setiap image URL
+//     const imagePathsSet = new Set();
+
+//     samples.forEach(sample => {
+//       [sample.fasa?.image, sample.crack?.image, sample.degradasi?.image].forEach(url => {
+//         if (url) {
+//           try {
+//             const parsed = new URL(url);
+//             // Ambil hanya pathname yang mirip `/uploads/path/to/file.jpg`
+//             const pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+//             imagePathsSet.add(pathname); // simpan dalam Set
+//           } catch (err) {
+//             // jika bukan URL valid, skip
+//           }
+//         }
+//       });
+//     });
+
+//     // Step 3: Baca folder lalu filter hanya file yang ada di Sample DB
+//     const items = fs.readdirSync(folderPath).map((entry) => {
+//       const entryFullPath = path.join(folderPath, entry);
+//       const stats = fs.statSync(entryFullPath);
+//       const relativePath = path.join(requestedPath, entry).replace(/\\/g, '/');
+//       const fullPathForComparison = `${uploadFolder}/${relativePath}`.replace(/\\/g, '/');
+
+//       return {
+//         name: entry,
+//         path: relativePath,
+//         type: stats.isDirectory() ? 'folder' : 'file',
+//         url: !stats.isDirectory() ? `${baseUrl}/${relativePath}` : undefined,
+//         size: stats.isDirectory() ? undefined : stats.size,
+//         extension: path.extname(entry),
+//         createdAt: stats.birthtime,
+//         modifiedAt: stats.mtime,
+//         isUsedInSample: imagePathsSet.has(fullPathForComparison)
+//       };
+//     });
+
+//     // Step 4: Filter hanya file yang digunakan di Sample
+//     const filteredItems = items.filter(item => item.type === 'folder' || item.isUsedInSample);
+
+//     res.json(filteredItems);
+//   } catch (err) {
+//     res.status(500).json({ error: 'Gagal membaca folder', detail: err.message });
+//   }
+// }
+
 const getUploadedSample = async (req, res) => {
   const uploadFolder = process.env.UPLOAD_FOLDER || 'uploads';
   const baseUrl = `${process.env.APP_URL}/${uploadFolder}`;
@@ -1956,27 +2137,22 @@ const getUploadedSample = async (req, res) => {
   try {
     // Step 1: Ambil semua path image dari Sample
     const samples = await Sample.find({}, {
-      "fasa.image": 1,
-      "crack.image": 1,
-      "degradasi.image": 1
+      "image": 1,
     }).lean();
 
     // Step 2: Ambil pathname dari setiap image URL
     const imagePathsSet = new Set();
 
     samples.forEach(sample => {
-      [sample.fasa?.image, sample.crack?.image, sample.degradasi?.image].forEach(url => {
-        if (url) {
-          try {
-            const parsed = new URL(url);
-            // Ambil hanya pathname yang mirip `/uploads/path/to/file.jpg`
-            const pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
-            imagePathsSet.add(pathname); // simpan dalam Set
-          } catch (err) {
-            // jika bukan URL valid, skip
-          }
+      if (sample.image) {
+        try {
+          const imageName = path.basename(sample.image);
+          const pathname = `${uploadFolder}/${imageName}`.replace(/\\/g, '/')
+          imagePathsSet.add(pathname); // simpan dalam Set
+        } catch (err) {
+          // jika bukan URL valid, skip
         }
-      });
+      }
     });
 
     // Step 3: Baca folder lalu filter hanya file yang ada di Sample DB
@@ -1990,7 +2166,8 @@ const getUploadedSample = async (req, res) => {
         name: entry,
         path: relativePath,
         type: stats.isDirectory() ? 'folder' : 'file',
-        url: !stats.isDirectory() ? `${baseUrl}/${relativePath}` : undefined,
+        // url: !stats.isDirectory() ? `${baseUrl}/${relativePath}` : undefined,
+        url: !stats.isDirectory() ? getAssetURL(relativePath) : undefined,
         size: stats.isDirectory() ? undefined : stats.size,
         extension: path.extname(entry),
         createdAt: stats.birthtime,
@@ -2049,5 +2226,5 @@ module.exports = {
   saveModel,
   createReportProjectEvaluation,
   saveCompletedModel,
-  getUploadedSample
+  getUploadedSample,
 };
