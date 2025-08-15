@@ -1,4 +1,4 @@
-require('dotenv').config
+require("dotenv").config;
 const sanitize = require("mongo-sanitize");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -14,20 +14,20 @@ const { getAssetURL } = require("../utils/assets");
 const AnalyzedResult = require("../models/AnalyzedResult");
 const Ai_Model = require("../models/Ai_Model");
 const axios = require("axios");
-const FormData = require('form-data');
+const FormData = require("form-data");
 
 // Helpers
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (input, hash) => await bcrypt.compare(input, hash);
 const Ai_model = new Ai_Model({
-  namaModel: 'degradasi d3',
-  namaPembuat: 'Fairuz',
-  jenisModel: 'degradasi',
-  fileName: 'degradasi d3.zip',
-  notes: 'degradasi d3'
+  namaModel: "crack f1",
+  namaPembuat: "Fairuz",
+  jenisModel: "crack",
+  fileName: "crack f1.zip",
+  notes: "crack f1",
 });
-// Ai_model.save();
 
+// Ai_model.save();
 
 const makeUrl = (filename) => {
   const folder = process.env.UPLOAD_FOLDER || "uploads";
@@ -202,8 +202,8 @@ const getUsers = async (req, res) => {
         role: user.isSuperAdmin
           ? "superadmin"
           : user.isAdmin
-            ? "supervisor"
-            : "user",
+          ? "supervisor"
+          : "user",
       })),
     });
   } catch (err) {
@@ -242,8 +242,8 @@ const getUserById = async (req, res) => {
         role: users.isSuperAdmin
           ? "superadmin"
           : users.isAdmin
-            ? "supervisor"
-            : "user",
+          ? "supervisor"
+          : "user",
       },
     });
   } catch (err) {
@@ -978,10 +978,14 @@ const editProjectEvaluation = async (req, res) => {
       message: "Pengujian Project berhasil diubah",
       data: {
         ...result,
-        gambarKomponent1: result.gambarKomponent1 ? getAssetURL(result.gambarKomponent1) : null,
-        gambarKomponent2: result.gambarKomponent2 ? getAssetURL(result.gambarKomponent2) : null,
-        listGambarStrukturMikro: result.listGambarStrukturMikro.map(
-          (gambar) => getAssetURL(gambar)
+        gambarKomponent1: result.gambarKomponent1
+          ? getAssetURL(result.gambarKomponent1)
+          : null,
+        gambarKomponent2: result.gambarKomponent2
+          ? getAssetURL(result.gambarKomponent2)
+          : null,
+        listGambarStrukturMikro: result.listGambarStrukturMikro.map((gambar) =>
+          getAssetURL(gambar)
         ),
       },
     });
@@ -1161,23 +1165,29 @@ const getProjectEvaluationById = async (req, res) => {
 
 const getAiModelList = async (req, res) => {
   try {
-    const models = await Ai_Model.find()
+    const models = await Ai_Model.find();
     // const namaModels=models.map(m=>m.namaModel)
-    console.log(models)
+    console.log(models);
     // ===== TODO: Untuk data dropdown di FE page Pengujian =======
     // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
     //clear dev 21072025 1322
 
     const aiModels = {
-      fasa: models.filter(m => m.jenisModel === 'fasa').map(m => m.namaModel),
-      crack: models.filter(m => m.jenisModel === 'crack').map(m => m.namaModel),
-      degradasi: models.filter(m => m.jenisModel === 'degradasi').map(m => m.namaModel)
-    }
+      fasa: models
+        .filter((m) => m.jenisModel === "fasa")
+        .map((m) => m.namaModel),
+      crack: models
+        .filter((m) => m.jenisModel === "crack")
+        .map((m) => m.namaModel),
+      degradasi: models
+        .filter((m) => m.jenisModel === "degradasi")
+        .map((m) => m.namaModel),
+    };
 
     res.status(200).json({
       status: true,
       message: "Get all ai model success",
-      data: aiModels
+      data: aiModels,
     });
   } catch (error) {
     console.error(error);
@@ -1185,7 +1195,7 @@ const getAiModelList = async (req, res) => {
       message: "Internal server error",
     });
   }
-}
+};
 
 const getAiClasificationList = async (req, res) => {
   try {
@@ -1193,21 +1203,15 @@ const getAiClasificationList = async (req, res) => {
     // aiModels bisa di get dari database / folder / file / sesuai kebutuhan, kode dibawah ini hanya contoh / template
     // sementara static
     const aiModels = {
-      fasa: [
-        "Austenite", "Martensite", "Ferrite", "Bainite"
-      ],
-      crack: [
-        "Terdeteksi", "Tidak Terdeteksi"
-      ],
-      degradasi: [
-        "ERA A", "ERA B", "ERA C", "ERA D"
-      ]
-    }
+      fasa: ["Austenite", "Martensite", "Ferrite", "Bainite"],
+      crack: ["Terdeteksi", "Tidak Terdeteksi"],
+      degradasi: ["ERA A", "ERA B", "ERA C", "ERA D"],
+    };
 
     res.status(200).json({
       status: true,
       message: "Get all ai clasification success",
-      data: aiModels
+      data: aiModels,
     });
   } catch (error) {
     console.error(error);
@@ -1215,7 +1219,7 @@ const getAiClasificationList = async (req, res) => {
       message: "Internal server error",
     });
   }
-}
+};
 
 const deleteProjectEvaluationById = async (req, res) => {
   try {
@@ -1401,31 +1405,44 @@ const hitMetalyticserve = async (filename, mode) => {
     let response = await axios.request(config);
     let predicted;
 
-    if (mode === "fasa") { predicted = response.data[`${mode}_results`]?.predicted_class; }
-    else if (mode === "crack") { predicted = response.data[`${mode}_results`]?.details.objects_detected; }
-    else if (mode === "degradation") { predicted = response.data[`${mode}_results`]?.predicted_class; }
+    if (mode === "fasa") {
+      predicted = response.data[`${mode}_results`]?.predicted_class;
+    } else if (mode === "crack") {
+      predicted = response.data[`${mode}_results`]?.details.objects_detected;
+    } else if (mode === "degradation") {
+      predicted = response.data[`${mode}_results`]?.predicted_class;
+    }
 
     let confidence;
-    if (mode === "fasa") { confidence = response.data[`${mode}_results`]?.probability; }
-    else if (mode === "crack") { confidence = 100; } // anggap crack confidence nya 100%
-    else if (mode === "degradation") { confidence = response.data[`${mode}_results`]?.probability; }
+    if (mode === "fasa") {
+      confidence = response.data[`${mode}_results`]?.probability;
+    } else if (mode === "crack") {
+      confidence = 100;
+    } // anggap crack confidence nya 100%
+    else if (mode === "degradation") {
+      confidence = response.data[`${mode}_results`]?.probability;
+    }
 
     let image;
-    if (mode === "fasa") { image = response.data[`${mode}_results`]?.image_base64; }
-    else if (mode === "crack") { image = response.data[`${mode}_results`]?.image_base64; }
-    else if (mode === "degradation") { image = response.data[`${mode}_results`]?.image_base64; }
+    if (mode === "fasa") {
+      image = response.data[`${mode}_results`]?.image_base64;
+    } else if (mode === "crack") {
+      image = response.data[`${mode}_results`]?.image_base64;
+    } else if (mode === "degradation") {
+      image = response.data[`${mode}_results`]?.image_base64;
+    }
 
     console.log(`Predicted class ${mode}: ${predicted}`);
     return {
       predicted,
       confidence,
-      image
+      image,
     };
   } catch (error) {
     console.error("Error hitting AI API:", error.message);
     return null;
   }
-}
+};
 
 const getMostFrequentPrediction = (results) => {
   const countMap = {};
@@ -1450,12 +1467,12 @@ const getMostFrequentPrediction = (results) => {
     prediction: mostFrequent,
     count: maxCount,
   };
-}
+};
 
 const getCrackConclusion = (results) => {
-  const hasCrack = results.some(item => item.predicted > 0);
+  const hasCrack = results.some((item) => item.predicted > 0);
   return hasCrack ? "terdeteksi microcrack" : "tidak terdeteksi microcrack";
-}
+};
 
 const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
   // ====== TODO: HIT AI EXTERNAL API ======
@@ -1470,10 +1487,9 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
   const responsesDegradasi = [];
   console.log("list gambar struktur mikro:", req.listGambarStrukturMikro);
   for (const filename of req.listGambarStrukturMikro) {
-    responsesFasa.push(hitMetalyticserve(filename, 'fasa'));
-    responsesCrack.push(hitMetalyticserve(filename, 'crack'));
-    responsesDegradasi.push(hitMetalyticserve(filename, 'degradation'));
-
+    responsesFasa.push(hitMetalyticserve(filename, "fasa"));
+    responsesCrack.push(hitMetalyticserve(filename, "crack"));
+    responsesDegradasi.push(hitMetalyticserve(filename, "degradation"));
   }
   const fasaResults = await Promise.all(responsesFasa);
   const crackResults = await Promise.all(responsesCrack);
@@ -1503,17 +1519,17 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
         hasilKlasifikasiAI: fasaResults[index].predicted, // Digunakan saat mode === "AI"
         modelAI: req.aiModelFasa,
         confidence: fasaResults[index].confidence * 100, // ubah ke persen dikali 100
-        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
+        hasilKlasifikasiManual: null, // string | null  // Digunakan saat mode === "MANUAL"
       },
       crack: {
         image: `data:image/jpeg;base64,${crackResults[index].image}`,
         penguji: user.name,
         tanggalUpdate: currentDate,
         mode: "AI", // AI | MANUAL
-        hasilKlasifikasiAI: crackResults[index].predicted,  // Digunakan saat mode === "AI"
+        hasilKlasifikasiAI: crackResults[index].predicted, // Digunakan saat mode === "AI"
         modelAI: req.aiModelCrack,
         confidence: crackResults[index].confidence,
-        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
+        hasilKlasifikasiManual: null, // string | null  // Digunakan saat mode === "MANUAL"
       },
       degradasi: {
         image: `data:image/jpeg;base64,${degradasiResults[index].image}`,
@@ -1522,9 +1538,9 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
         mode: "AI", // AI | MANUAL
         hasilKlasifikasiAI: degradasiResults[index].predicted, // Digunakan saat mode === "AI"
         modelAI: req.aiModelDegradasi,
-        confidence: degradasiResults[index].confidence * 100,  // ubah ke persen dikali 100
-        hasilKlasifikasiManual: null // string | null  // Digunakan saat mode === "MANUAL"
-      }
+        confidence: degradasiResults[index].confidence * 100, // ubah ke persen dikali 100
+        hasilKlasifikasiManual: null, // string | null  // Digunakan saat mode === "MANUAL"
+      },
     })),
     kesimpulan: {
       strukturMikro: getMostFrequentPrediction(fasaResults).prediction,
@@ -1533,8 +1549,8 @@ const analyzeProjectEvaluationWithAIExternalAPI = async (req, user) => {
       hardness: "-",
       rekomendasi: "-",
     },
-  }
-}
+  };
+};
 
 const analyzeProjectEvaluation = async (req, res) => {
   try {
@@ -1585,8 +1601,10 @@ const analyzeProjectEvaluation = async (req, res) => {
     }
 
     // ======= TODO: Untuk Proses Analisa Pengujian Project ============
-    // proses hit API External untuk Analisa AI Model nya bisa dilakukan dibawah ini 
-    const existingProject = await Project.findOne({ idProject: requestBody.projectId, }).populate({
+    // proses hit API External untuk Analisa AI Model nya bisa dilakukan dibawah ini
+    const existingProject = await Project.findOne({
+      idProject: requestBody.projectId,
+    }).populate({
       path: "penguji",
       select: "name email",
     });
@@ -1616,16 +1634,21 @@ const analyzeProjectEvaluation = async (req, res) => {
         tanggalOrderMasuk: existingProject.tanggalOrderMasuk,
         penguji: existingProject.penguji.map((penguji) => penguji.name),
       },
-    }
+    };
 
     // 2. hit API External dengan membawa data Pengujian Project,
-    const resultFromExternalApi = await analyzeProjectEvaluationWithAIExternalAPI(requestBodyForApiExternal, user);
-
+    const resultFromExternalApi =
+      await analyzeProjectEvaluationWithAIExternalAPI(
+        requestBodyForApiExternal,
+        user
+      );
 
     // simpan image dan hasil analisa ke database collection Sample, digunakan untuk menampilkan REKOMENDASI hasil analisa saat di menu Pengaturan Model AI
-    const savedSample = await Sample.insertMany(resultFromExternalApi.hasilAnalisa);
+    const savedSample = await Sample.insertMany(
+      resultFromExternalApi.hasilAnalisa
+    );
 
-    // 3. masukkan hasil dari "resultFromExternalApi" ke variabel "analyzedResultFromExternalAPI" 
+    // 3. masukkan hasil dari "resultFromExternalApi" ke variabel "analyzedResultFromExternalAPI"
     // dibawah ini disimulasikan dengan data dummy, anda seharusnya mengambil data tersebut dari API External
     // pastikan struktur data sesuai dengan yang diharapkan (sesuai dengan struktur data dummy dibawah ini)
     const analyzedResultToBeSaved = {
@@ -1647,7 +1670,7 @@ const analyzeProjectEvaluation = async (req, res) => {
         merkMikroskop: requestBody.merkMikroskop,
         perbesaranMikroskop: requestBody.perbesaranMikroskop,
         gambarKomponent1: requestBody.gambarKomponent1,
-        gambarKomponent2: requestBody.gambarKomponent2
+        gambarKomponent2: requestBody.gambarKomponent2,
       },
       hasilAnalisa: resultFromExternalApi.hasilAnalisa,
       kesimpulan: {
@@ -1655,11 +1678,11 @@ const analyzeProjectEvaluation = async (req, res) => {
         fiturMikroskopik: resultFromExternalApi.kesimpulan.fiturMikroskopik,
         damageClass: resultFromExternalApi.kesimpulan.damageClass,
         hardness: resultFromExternalApi.kesimpulan.hardness,
-        rekomendasi: resultFromExternalApi.kesimpulan.rekomendasi
+        rekomendasi: resultFromExternalApi.kesimpulan.rekomendasi,
       },
       penguji: existingProject.penguji.map((penguji) => penguji.name),
-      pemeriksa: [user.name]
-    }
+      pemeriksa: [user.name],
+    };
 
     // 4 simpan di database jika diperlukan (kemungkinan diperlukan agar di database kita juga menyimpan data hasil Analisa AI Model)
     await AnalyzedResult.create(analyzedResultToBeSaved);
@@ -1673,12 +1696,11 @@ const analyzeProjectEvaluation = async (req, res) => {
       status: true,
       message: "Pengujian Project berhasil berhasil dianalisa",
     });
-
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      message: "Internal server error",
+      message: error,
     });
   }
 };
@@ -1687,7 +1709,9 @@ const getAnalyzedResult = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const analyzedResult = await AnalyzedResult.findOne({ projectEvaluationId: id }).lean();
+    const analyzedResult = await AnalyzedResult.findOne({
+      projectEvaluationId: id,
+    }).lean();
 
     if (!analyzedResult) {
       return res.status(404).json({
@@ -1724,7 +1748,9 @@ const updateAnalyzedResult = async (req, res) => {
       modelAnalyzedResultId, // hasilAnalisa[index]._id
     } = req.body;
 
-    const analyzedResult = await AnalyzedResult.findOne({ projectEvaluationId: id });
+    const analyzedResult = await AnalyzedResult.findOne({
+      projectEvaluationId: id,
+    });
     if (!analyzedResult) {
       return res.status(404).json({ message: "Analyzed Result not found" });
     }
@@ -1735,7 +1761,9 @@ const updateAnalyzedResult = async (req, res) => {
     );
 
     if (index === -1) {
-      return res.status(404).json({ message: "Data hasilAnalisa tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ message: "Data hasilAnalisa tidak ditemukan" });
     }
 
     // 📝 Update data berdasarkan type dan mode
@@ -1756,9 +1784,8 @@ const updateAnalyzedResult = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Hasil analisa berhasil diperbarui",
-      data: analyzedResult
+      data: analyzedResult,
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
@@ -1771,7 +1798,6 @@ const getAiRecommendationFromSampleBackup = async (req, res) => {
     if (isUnauthorized(user)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
 
     const { type, imageList } = req.body;
 
@@ -1833,7 +1859,7 @@ const getAiRecommendationFromSample = async (req, res) => {
 
     // Query semua sample yang filenya ada di imageList
     const samples = await Sample.find({
-      image: { $in: imageList.map(name => new RegExp(name + "$")) }
+      image: { $in: imageList.map((name) => new RegExp(name + "$")) },
     })
       .sort({ createdAt: -1 }) // urutkan dari terbaru
       .lean();
@@ -1849,7 +1875,7 @@ const getAiRecommendationFromSample = async (req, res) => {
 
     // Susun hasil sesuai urutan imageList dari request
     const aiRecommendationResult = imageList
-      .map(name => latestPerImage[name])
+      .map((name) => latestPerImage[name])
       .filter(Boolean) // hapus yang tidak ketemu
       .map((sample, index) => {
         const data = sample[type];
@@ -1888,26 +1914,24 @@ const createReportProjectEvaluation = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    //  ====== TODO: Untuk handle Create Report Hasil Analisa  ====== 
-    const requestBody = req.body
+    //  ====== TODO: Untuk handle Create Report Hasil Analisa  ======
+    const requestBody = req.body;
 
     // ==== Contoh isi requestBody dari FE ====
     console.log(requestBody);
-
 
     // ==== dengan data dari requestBody nanti bisa disesuaikan sesuai kebutuhan =====
 
     res.status(200).json({
       status: true,
       message: "Create Report Successfully",
-      data: {
-      },
+      data: {},
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const startTraining = async (req, res) => {
   try {
@@ -1918,13 +1942,13 @@ const startTraining = async (req, res) => {
     }
 
     //  ====== TODO: Untuk handle training AI ======
-    const requestBody = req.body
+    const requestBody = req.body;
 
     console.log(requestBody);
 
     // ==== Contoh isi requestBody dari FE =====
     // {
-    //   type: "fasa" | "crack" | "degradasi", 
+    //   type: "fasa" | "crack" | "degradasi",
     //   aiRecommendationResult: [
     //     {
     //       image: "http://localhost:1945/uploads/20250707_175445_gv2aj.png",
@@ -1957,14 +1981,13 @@ const startTraining = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Data Traning Successfully",
-      data: {
-      },
+      data: {},
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const saveModel = async (req, res) => {
   try {
@@ -1974,15 +1997,14 @@ const saveModel = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    //  ====== TODO: Untuk handle save model AI ====== 
-    const requestBody = req.body
+    //  ====== TODO: Untuk handle save model AI ======
+    const requestBody = req.body;
     const files = req.files;
-
 
     // ==== Contoh isi requestBody dari FE (untuk saat ini request dari FE sama dengan di controller startTraining karena dri kita tidak tahu apa yg diperlukan) =====
 
     // {
-    //   type: "fasa" | "crack" | "degradasi", 
+    //   type: "fasa" | "crack" | "degradasi",
     //   aiRecommendationResult: [
     //     {
     //       image: "http://localhost:1945/uploads/20250707_175445_gv2aj.png",
@@ -2018,52 +2040,53 @@ const saveModel = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Save Model Successfully",
-      data: {
-      },
+      data: {},
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const saveCompletedModel = async (req, res) => {
   try {
     const user = req.existingUser;
 
-    if (isUnauthorized(user)) {
+    if (!user || !user.name) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    //  ====== TODO: Untuk handle save model AI yang sudah jadi ====== 
-    const requestBody = req.body
+    const { aiModelName, aiModelType, notes } = req.body;
+    const files = req.files; // depends on your upload middleware (multer, busboy, formidable, etc.)
 
-    // ==== Contoh isi requestBody dari FE ====
-    // {
-    //   aiModelName: "Model AI Fasa 12",
-    // }
+    if (!aiModelName || !aiModelType) {
+      return res
+        .status(400)
+        .json({ message: "Nama dan jenis model wajib diisi" });
+    }
 
-    const files = req.files
+    // ===== Build DB record =====
+    const newModel = {
+      namaModel: aiModelName,
+      jenisModel: aiModelType,
+      namaPembuat: user.name,
+      //  TODO: GANTI DENGAN FOLDER MODEL YANG SUDAH JADI, ADJUST DENGAN FRONTEND
+      fileName: "test.zip",
+      notes: notes || aiModelName,
+    };
 
-    // ==== Contoh isi requestBody dari FE ====
-    // {
-    //   aiModelFile: file ai //
-    // }
-
-
-    // ==== dengan data dari requestBody nanti bisa disesuaikan sesuai kebutuhan =====
+    const saved = await Ai_Model.create(newModel);
 
     res.status(200).json({
       status: true,
       message: "Save Model Successfully",
-      data: {
-      },
+      data: newModel, // return what you saved
     });
   } catch (error) {
-    console.error(error);
+    console.error("Save Model Error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 // const getUploadedSample = async (req, res) => {
 //   const uploadFolder = process.env.UPLOAD_FOLDER || 'uploads';
@@ -2129,25 +2152,28 @@ const saveCompletedModel = async (req, res) => {
 // }
 
 const getUploadedSample = async (req, res) => {
-  const uploadFolder = process.env.UPLOAD_FOLDER || 'uploads';
+  const uploadFolder = process.env.UPLOAD_FOLDER || "uploads";
   const baseUrl = `${process.env.APP_URL}/${uploadFolder}`;
-  const requestedPath = req.query.path || '';
+  const requestedPath = req.query.path || "";
   const folderPath = path.resolve(process.cwd(), uploadFolder, requestedPath);
 
   try {
     // Step 1: Ambil semua path image dari Sample
-    const samples = await Sample.find({}, {
-      "image": 1,
-    }).lean();
+    const samples = await Sample.find(
+      {},
+      {
+        image: 1,
+      }
+    ).lean();
 
     // Step 2: Ambil pathname dari setiap image URL
     const imagePathsSet = new Set();
 
-    samples.forEach(sample => {
+    samples.forEach((sample) => {
       if (sample.image) {
         try {
           const imageName = path.basename(sample.image);
-          const pathname = `${uploadFolder}/${imageName}`.replace(/\\/g, '/')
+          const pathname = `${uploadFolder}/${imageName}`.replace(/\\/g, "/");
           imagePathsSet.add(pathname); // simpan dalam Set
         } catch (err) {
           // jika bukan URL valid, skip
@@ -2159,32 +2185,38 @@ const getUploadedSample = async (req, res) => {
     const items = fs.readdirSync(folderPath).map((entry) => {
       const entryFullPath = path.join(folderPath, entry);
       const stats = fs.statSync(entryFullPath);
-      const relativePath = path.join(requestedPath, entry).replace(/\\/g, '/');
-      const fullPathForComparison = `${uploadFolder}/${relativePath}`.replace(/\\/g, '/');
+      const relativePath = path.join(requestedPath, entry).replace(/\\/g, "/");
+      const fullPathForComparison = `${uploadFolder}/${relativePath}`.replace(
+        /\\/g,
+        "/"
+      );
 
       return {
         name: entry,
         path: relativePath,
-        type: stats.isDirectory() ? 'folder' : 'file',
+        type: stats.isDirectory() ? "folder" : "file",
         // url: !stats.isDirectory() ? `${baseUrl}/${relativePath}` : undefined,
         url: !stats.isDirectory() ? getAssetURL(relativePath) : undefined,
         size: stats.isDirectory() ? undefined : stats.size,
         extension: path.extname(entry),
         createdAt: stats.birthtime,
         modifiedAt: stats.mtime,
-        isUsedInSample: imagePathsSet.has(fullPathForComparison)
+        isUsedInSample: imagePathsSet.has(fullPathForComparison),
       };
     });
 
     // Step 4: Filter hanya file yang digunakan di Sample
-    const filteredItems = items.filter(item => item.type === 'folder' || item.isUsedInSample);
+    const filteredItems = items.filter(
+      (item) => item.type === "folder" || item.isUsedInSample
+    );
 
     res.json(filteredItems);
   } catch (err) {
-    res.status(500).json({ error: 'Gagal membaca folder', detail: err.message });
+    res
+      .status(500)
+      .json({ error: "Gagal membaca folder", detail: err.message });
   }
-}
-
+};
 
 module.exports = {
   getImageProfile,

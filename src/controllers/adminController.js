@@ -43,7 +43,7 @@ const registerSuperAdmin = async (req, res) => {
       email: "-",
       noHp: "-",
       alamat: "-",
-      projects: [""],
+      projects: null,
       filename: "-",
       filepath: "-",
       isSuperAdmin: true,
